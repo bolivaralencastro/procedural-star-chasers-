@@ -216,7 +216,9 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   };
 
   public contextMenu = { visible: false, x: 0, y: 0 };
+  public mobileMenuVisible = signal(false); // Mobile-specific menu
   public mouseInteractionEnabled = signal(true);
+  public isMobile = signal(false); // Make it a signal for template access
   private cdr = inject(ChangeDetectorRef);
   public audioService = inject(AudioService);
   public wakeLockService = inject(ScreenWakeLockService);
@@ -225,7 +227,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private longPressTimer: any = null;
   private touchStartPosition: Vector2D | null = null;
   private readonly LONG_PRESS_DURATION = 500; // 500ms
-  private isMobile = false;
   
   // Scaling properties
   private renderScale = 1.0;
@@ -280,7 +281,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:touchstart', ['$event'])
   onTouchStart(event: TouchEvent) {
-    if (!this.isMobile) return; // Only handle this for mobile devices
+    if (!this.isMobile()) return; // Only handle this for mobile devices
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const touch = event.touches[0];
@@ -290,29 +291,37 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.mouse.pos.x = touchX / this.renderScale;
     this.mouse.pos.y = touchY / this.renderScale;
   
-    if (this.contextMenu.visible) {
-      // Check if the touch is on the context menu itself
+    // Check if the touch is on the mobile floating menu
+    if (this.mobileMenuVisible()) {
       const menuElement = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (menuElement && (menuElement.closest('.context-menu') || menuElement.classList.contains('context-menu'))) {
+      if (menuElement && (menuElement.closest('.mobile-menu') || menuElement.classList.contains('mobile-menu'))) {
         // Don't hide the menu if we're touching it - let the click event handle the menu items
-        // But prevent default to avoid any scrolling or other touch behaviors
         event.preventDefault();
         return;
       } else {
         // Touch is outside the menu, close it
-        this.contextMenu.visible = false;
+        this.mobileMenuVisible.set(false);
         this.cdr.detectChanges();
+        // Check if it's a tap on a ship to speed it up
+        this.handleShipTap();
         return;
       }
     }
     
-    // Start long-press timer to show context menu
-    this.touchStartPosition = new Vector2D(this.mouse.pos.x, this.mouse.pos.y);
-    this.longPressTimer = setTimeout(() => {
-      event.preventDefault(); // Prevent default context menu on some devices
-      this.showContextMenu(touchX, touchY); // Use UN-SCALED coordinates for HTML menu
-      this.longPressTimer = null;
-    }, this.LONG_PRESS_DURATION);
+    // Check if it's a tap on a ship to speed it up
+    if (!this.contextMenu.visible) {
+      this.handleShipTap();
+    }
+    
+    // Start long-press timer to show context menu only if mouse interaction is enabled
+    if (this.mouseInteractionEnabled()) {
+      this.touchStartPosition = new Vector2D(this.mouse.pos.x, this.mouse.pos.y);
+      this.longPressTimer = setTimeout(() => {
+        event.preventDefault(); // Prevent default context menu on some devices
+        this.showContextMenu(touchX, touchY); // Use UN-SCALED coordinates for HTML menu
+        this.longPressTimer = null;
+      }, this.LONG_PRESS_DURATION);
+    }
   
     // Handle regular "click" for orbiting/wormholes (will be handled on touchend)
     if (this.mouseInteractionEnabled()) {
@@ -354,6 +363,25 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.showContextMenu(event.clientX, event.clientY);
   }
 
+  private handleShipTap() {
+    // Check if the tap is on any ship
+    for (const ship of this.ships) {
+      const distance = Vector2D.distance(this.mouse.pos, ship.position);
+      const radius = ship.radius * (1 + ship.z * 0.4); // Account for z-index scaling
+      
+      if (distance < radius) {
+        // Tap is on a ship, increase its speed slightly
+        const speedIncrease = 0.3;
+        ship.velocity.normalize().multiply(ship.velocity.magnitude() + speedIncrease);
+        
+        // Add a visual effect to indicate the speed boost
+        this.createStarExplosion(ship.position, 5);
+        this.audioService.playSound('launch');
+        return; // Tap handled, don't do anything else
+      }
+    }
+  }
+
   private showContextMenu(x: number, y: number) {
     this.contextMenu.visible = true;
     this.contextMenu.x = x;
@@ -393,6 +421,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  public toggleMobileMenu() {
+    this.mobileMenuVisible.update(v => !v);
+    this.contextMenu.visible = false; // Close context menu if open
+    this.cdr.detectChanges();
+  }
+
   ngAfterViewInit(): void {
     this.ctx = this.canvasRef.nativeElement.getContext('2d')!;
     this.setupCanvas();
@@ -414,9 +448,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private setupCanvas() {
     // Mobile check for scaling
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+    const detectedIsMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                    (window.innerWidth < 800 && 'ontouchstart' in window);
-    this.renderScale = this.isMobile ? 0.6 : 1.0;
+    this.isMobile.set(detectedIsMobile);
+    this.renderScale = detectedIsMobile ? 0.6 : 1.0;
 
     this.canvasRef.nativeElement.width = window.innerWidth;
     this.canvasRef.nativeElement.height = window.innerHeight;
