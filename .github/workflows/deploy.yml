@@ -33,8 +33,9 @@ jobs:
 
       - name: Build
         # Compila seu projeto para gerar os arquivos estáticos (HTML, CSS, JS)
-        # O base-href é crucial para que os arquivos sejam encontrados no GitHub Pages
-        run: ng build --configuration production --base-href /procedural-star-chasers/
+        # O base-href é crucial para que os arquivos sejam encontrados no GitHub Pages.
+        # Usamos 'npx' para garantir que o comando 'ng' do projeto seja encontrado.
+        run: npx ng build --configuration production --base-href /procedural-star-chasers-/
 
       - name: Upload artifact
         # Envia os arquivos compilados para o GitHub Pages
