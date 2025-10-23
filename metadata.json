@@ -1,0 +1,5 @@
+{
+  "name": "Procedural Star Chasers",
+  "description": "An interactive, full-screen web experience simulating a space environment where AI-controlled comets compete to capture target stars. Users can interact with comets using the mouse to attract, orbit, and fling them across the toroidal space.",
+  "requestFramePermissions": []
+}

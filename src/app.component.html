@@ -1,0 +1,26 @@
+<div class="relative w-screen h-screen bg-black">
+  <app-star-chasers 
+    (toggleFullscreenRequest)="toggleFullscreen()"
+    [isFullscreen]="isFullscreen()"
+    [isAudioMuted]="isAudioMuted()"
+    (toggleAudioRequest)="toggleAudio()">
+  </app-star-chasers>
+
+  <!-- Central Clock and Date -->
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none gap-1">
+    <!-- Time -->
+    <div class="flex text-gray-500" style="text-shadow: 0 0 8px rgba(156, 163, 175, 0.4);">
+        @for(digit of timeDigits(); track $index) {
+            <span class="font-mono text-2xl w-5 text-center">{{ digit }}</span>
+        }
+    </div>
+    <!-- Date -->
+    <div class="flex text-gray-600" style="text-shadow: 0 0 6px rgba(156, 163, 175, 0.3);">
+        @for(digit of dateDigits(); track $index) {
+            <span class="font-mono text-xs w-2 text-center">{{ digit }}</span>
+        }
+    </div>
+  </div>
+
+</div>
+<audio #audioPlayer loop src="https://cdn.pixabay.com/audio/2023/06/07/audio_333d8d212f.mp3"></audio>

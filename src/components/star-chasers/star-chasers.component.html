@@ -1,0 +1,28 @@
+<div class="relative w-full h-full" (contextmenu)="onContextMenu($event)">
+    <canvas #gameCanvas 
+        class="w-full h-full block cursor-none">
+    </canvas>
+
+    @if (contextMenu.visible) {
+        <div 
+            class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden"
+            [style.left.px]="contextMenu.x"
+            [style.top.px]="contextMenu.y">
+            
+            <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors"
+                 (mousedown)="toggleMouseInteraction($event)">
+                {{ mouseInteractionEnabled ? 'Disable Mouse' : 'Enable Mouse' }}
+            </div>
+
+            <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
+                 (mousedown)="onToggleAudio($event)">
+                {{ isAudioMuted ? 'Unmute Audio' : 'Mute Audio' }}
+            </div>
+            
+            <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
+                 (mousedown)="onToggleFullscreen($event)">
+                {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }}
+            </div>
+        </div>
+    }
+</div>
