@@ -41,8 +41,9 @@ jobs:
         # Envia os arquivos compilados para o GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          # O caminho para a pasta de build. O nome corresponde ao seu projeto.
-          path: './dist/procedural-star-chasers'
+          # CORREÇÃO: Apontamos diretamente para a pasta 'dist',
+          # conforme indicado pelo log do build.
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         # Publica o site
