@@ -1,0 +1,49 @@
+# .github/workflows/deploy.yml
+name: Build and Deploy to GitHub Pages
+
+on:
+  # Executa sempre que você fizer um 'push' na branch 'main'
+  push:
+    branches: [ "main" ]
+
+# Permissões necessárias para a Action poder publicar a página
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        # Baixa o seu código para o ambiente da Action
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        # Instala o Node.js, necessário para rodar o Angular
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        # Instala as dependências do seu projeto (Angular, etc.)
+        run: npm install
+
+      - name: Build
+        # Compila seu projeto para gerar os arquivos estáticos (HTML, CSS, JS)
+        # O base-href é crucial para que os arquivos sejam encontrados no GitHub Pages
+        run: ng build --configuration production --base-href /procedural-star-chasers/
+
+      - name: Upload artifact
+        # Envia os arquivos compilados para o GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # O caminho para a pasta de build. O nome corresponde ao seu projeto.
+          path: './dist/procedural-star-chasers'
+
+      - name: Deploy to GitHub Pages
+        # Publica o site
+        id: deployment
+        uses: actions/deploy-pages@v4
