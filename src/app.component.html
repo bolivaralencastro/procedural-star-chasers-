@@ -1,9 +1,7 @@
 <div class="relative w-screen h-screen bg-black">
   <app-star-chasers 
     (toggleFullscreenRequest)="toggleFullscreen()"
-    [isFullscreen]="isFullscreen()"
-    [isAudioMuted]="isAudioMuted()"
-    (toggleAudioRequest)="toggleAudio()">
+    [isFullscreen]="isFullscreen()">
   </app-star-chasers>
 
   <!-- Central Clock and Date -->
@@ -23,4 +21,3 @@
   </div>
 
 </div>
-<audio #audioPlayer loop src="https://cdn.pixabay.com/audio/2023/06/07/audio_333d8d212f.mp3"></audio>

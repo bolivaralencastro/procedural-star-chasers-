@@ -5,23 +5,41 @@
 
     @if (contextMenu.visible) {
         <div 
-            class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden"
+            class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden w-52"
             [style.left.px]="contextMenu.x"
             [style.top.px]="contextMenu.y">
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors"
                  (mousedown)="toggleMouseInteraction($event)">
-                {{ mouseInteractionEnabled ? 'Disable Mouse' : 'Enable Mouse' }}
+                {{ mouseInteractionEnabled() ? 'Disable Mouse' : 'Enable Mouse' }}
             </div>
 
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
                  (mousedown)="onToggleAudio($event)">
-                {{ isAudioMuted ? 'Unmute Audio' : 'Mute Audio' }}
+                {{ audioService.isMuted() ? 'Unmute Audio' : 'Mute Audio' }}
             </div>
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
                  (mousedown)="onToggleFullscreen($event)">
                 {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }}
+            </div>
+
+            <div class="px-4 py-3 border-t border-gray-600">
+                <h4 class="text-xs text-gray-400 mb-2 uppercase tracking-wider">Ship Stats</h4>
+                <div class="space-y-2">
+                  @for(ship of ships; track ship.id) {
+                    <div class="flex items-center justify-between text-xs">
+                      <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" [style.background-color]="ship.hexColor"></span>
+                        <span class="font-semibold">{{ ship.color }}</span>
+                      </div>
+                      <div class="flex items-center gap-3 text-gray-300">
+                        <span>★ {{ ship.score }}</span>
+                        <span>☄ {{ ship.asteroidsDestroyed }}</span>
+                      </div>
+                    </div>
+                  }
+                </div>
             </div>
         </div>
     }

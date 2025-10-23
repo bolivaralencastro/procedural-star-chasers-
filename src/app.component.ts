@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, ViewChild, ElementRef, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { AudioService } from './services/audio.service';
 
 export interface Score {
   color: 'Red' | 'Green' | 'Blue';
@@ -16,10 +17,9 @@ export interface Score {
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);
-  isAudioMuted = signal(true);
   
-  @ViewChild('audioPlayer') private audioPlayerRef!: ElementRef<HTMLAudioElement>;
   private platformId = inject(PLATFORM_ID);
+  private audioService = inject(AudioService);
   
   private clockIntervalId?: number;
   currentTime = signal(new Date());
@@ -44,6 +44,7 @@ export class AppComponent implements OnDestroy {
       if (this.clockIntervalId) {
         clearInterval(this.clockIntervalId);
       }
+      this.audioService.cleanup();
     }
   }
 
@@ -75,28 +76,7 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  async toggleAudio(): Promise<void> {
-    if (!this.audioPlayerRef) return;
-    const audio = this.audioPlayerRef.nativeElement;
-
-    // First interaction: audio is paused. We need to play it and unmute.
-    if (audio.paused) {
-      try {
-        audio.volume = 0.3;
-        await audio.play();
-        this.isAudioMuted.set(false); // We want it unmuted now
-        audio.muted = false;
-      } catch (e) {
-        console.error("Audio playback failed. User interaction might be required.", e);
-        // If play fails, do nothing and keep it muted.
-        this.isAudioMuted.set(true);
-      }
-      return;
-    }
-
-    // Subsequent interactions: audio is playing, just toggle mute.
-    const newMutedState = !this.isAudioMuted();
-    this.isAudioMuted.set(newMutedState);
-    audio.muted = newMutedState;
+  toggleAudio(): void {
+    this.audioService.toggleMute();
   }
 }
