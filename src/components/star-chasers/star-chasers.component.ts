@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AudioService } from '../../services/audio.service';
+import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
 
 // Helper Vector2D class
 class Vector2D {
@@ -218,11 +219,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   public mouseInteractionEnabled = signal(true);
   private cdr = inject(ChangeDetectorRef);
   public audioService = inject(AudioService);
+  public wakeLockService = inject(ScreenWakeLockService);
 
   // Long-press properties for mobile
   private longPressTimer: any = null;
   private touchStartPosition: Vector2D | null = null;
   private readonly LONG_PRESS_DURATION = 500; // 500ms
+  private isMobile = false;
   
   // Scaling properties
   private renderScale = 1.0;
@@ -277,6 +280,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:touchstart', ['$event'])
   onTouchStart(event: TouchEvent) {
+    if (!this.isMobile) return; // Only handle this for mobile devices
+    
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const touch = event.touches[0];
     const touchX = touch.clientX - rect.left;
@@ -286,11 +291,22 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.mouse.pos.y = touchY / this.renderScale;
   
     if (this.contextMenu.visible) {
-      this.contextMenu.visible = false;
-      this.cdr.detectChanges();
+      // Check if the touch is on the context menu itself
+      const menuElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (menuElement && (menuElement.closest('.context-menu') || menuElement.classList.contains('context-menu'))) {
+        // Don't hide the menu if we're touching it - let the click event handle the menu items
+        // But prevent default to avoid any scrolling or other touch behaviors
+        event.preventDefault();
+        return;
+      } else {
+        // Touch is outside the menu, close it
+        this.contextMenu.visible = false;
+        this.cdr.detectChanges();
+        return;
+      }
     }
     
-    // Start long-press timer
+    // Start long-press timer to show context menu
     this.touchStartPosition = new Vector2D(this.mouse.pos.x, this.mouse.pos.y);
     this.longPressTimer = setTimeout(() => {
       event.preventDefault(); // Prevent default context menu on some devices
@@ -298,7 +314,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.longPressTimer = null;
     }, this.LONG_PRESS_DURATION);
   
-    // Handle regular "click" for orbiting/wormholes
+    // Handle regular "click" for orbiting/wormholes (will be handled on touchend)
     if (this.mouseInteractionEnabled()) {
       this.mouse.isDown = true;
     } else if (!this.wormhole) {
@@ -346,21 +362,35 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   public toggleMouseInteraction(event: Event) {
+    event.preventDefault();
     event.stopPropagation();
     this.mouseInteractionEnabled.update(v => !v);
     this.contextMenu.visible = false;
+    this.cdr.detectChanges();
   }
   
   public onToggleAudio(event: Event) {
+    event.preventDefault();
     event.stopPropagation();
     this.audioService.toggleMute();
     this.contextMenu.visible = false;
+    this.cdr.detectChanges();
   }
 
   public onToggleFullscreen(event: Event) {
+    event.preventDefault();
     event.stopPropagation();
     this.toggleFullscreenRequest.emit();
     this.contextMenu.visible = false;
+    this.cdr.detectChanges();
+  }
+
+  public onToggleWakeLock(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.wakeLockService.toggleWakeLock();
+    this.contextMenu.visible = false;
+    this.cdr.detectChanges();
   }
 
   ngAfterViewInit(): void {
@@ -378,12 +408,15 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       clearTimeout(this.longPressTimer);
     }
     this.audioService.updateGameSounds(false, false, false, undefined);
+    // Note: Don't call wakeLockService.cleanup() here as it's a singleton provided in root
+    // The app component will handle cleanup
   }
 
   private setupCanvas() {
     // Mobile check for scaling
-    const isMobile = window.innerWidth < 800;
-    this.renderScale = isMobile ? 0.6 : 1.0;
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   (window.innerWidth < 800 && 'ontouchstart' in window);
+    this.renderScale = this.isMobile ? 0.6 : 1.0;
 
     this.canvasRef.nativeElement.width = window.innerWidth;
     this.canvasRef.nativeElement.height = window.innerHeight;

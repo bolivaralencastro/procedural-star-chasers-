@@ -1,27 +1,32 @@
-<div class="relative w-full h-full" (contextmenu)="onContextMenu($event)">
+<div class="relative w-full h-full" (contextmenu)="onContextMenu($event)" [class.pointer-events-none]="contextMenu.visible">
     <canvas #gameCanvas 
         class="w-full h-full block cursor-none">
     </canvas>
 
     @if (contextMenu.visible) {
         <div 
-            class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden w-52"
+            class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden w-52 context-menu"
             [style.left.px]="contextMenu.x"
             [style.top.px]="contextMenu.y">
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors"
-                 (mousedown)="toggleMouseInteraction($event)">
+                 (click)="toggleMouseInteraction($event)">
                 {{ mouseInteractionEnabled() ? 'Disable Mouse' : 'Enable Mouse' }}
             </div>
 
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
-                 (mousedown)="onToggleAudio($event)">
+                 (click)="onToggleAudio($event)">
                 {{ audioService.isMuted() ? 'Unmute Audio' : 'Mute Audio' }}
             </div>
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
-                 (mousedown)="onToggleFullscreen($event)">
+                 (click)="onToggleFullscreen($event)">
                 {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }}
+            </div>
+            
+            <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
+                 (click)="onToggleWakeLock($event)">
+                {{ wakeLockService.getIsEnabled()() ? 'Disable Wake Lock' : 'Enable Wake Lock' }}
             </div>
 
             <div class="px-4 py-3 border-t border-gray-600">

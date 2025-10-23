@@ -20,4 +20,22 @@
     </div>
   </div>
 
+  <!-- Wake Lock Status Indicator -->
+  <div class="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto">
+    <button 
+      type="button"
+      (click)="toggleWakeLock()"
+      class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800/60 backdrop-blur-sm border border-gray-600 hover:bg-gray-700/80 transition-colors"
+      [class.text-yellow-400]="isWakeLockEnabled()"
+      [class.text-gray-400]="!isWakeLockEnabled()"
+      title="Toggle screen wake lock">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 6V4a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v2"></path>
+        <path d="M12 18v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2"></path>
+        <path d="M6 12H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2"></path>
+        <path d="M18 12h2a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    </button>
+  </div>
 </div>

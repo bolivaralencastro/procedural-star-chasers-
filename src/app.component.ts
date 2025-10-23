@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterN
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AudioService } from './services/audio.service';
+import { ScreenWakeLockService } from './services/screen-wake-lock.service';
 
 export interface Score {
   color: 'Red' | 'Green' | 'Blue';
@@ -17,9 +18,11 @@ export interface Score {
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);
+  isWakeLockEnabled = signal(false);
   
   private platformId = inject(PLATFORM_ID);
   private audioService = inject(AudioService);
+  private screenWakeLockService = inject(ScreenWakeLockService);
   
   private clockIntervalId?: number;
   currentTime = signal(new Date());
@@ -34,6 +37,12 @@ export class AppComponent implements OnDestroy {
         this.clockIntervalId = window.setInterval(() => {
           this.currentTime.set(new Date());
         }, 1000);
+        
+        // Initialize wake lock state
+        this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
+        this.screenWakeLockService.getIsEnabled().subscribe(enabled => {
+          this.isWakeLockEnabled.set(enabled);
+        });
       }
     });
   }
@@ -45,6 +54,7 @@ export class AppComponent implements OnDestroy {
         clearInterval(this.clockIntervalId);
       }
       this.audioService.cleanup();
+      this.screenWakeLockService.cleanup();
     }
   }
 
@@ -78,5 +88,9 @@ export class AppComponent implements OnDestroy {
 
   toggleAudio(): void {
     this.audioService.toggleMute();
+  }
+
+  toggleWakeLock(): void {
+    this.screenWakeLockService.toggleWakeLock();
   }
 }
