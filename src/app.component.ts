@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, effect } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AudioService } from './services/audio.service';
@@ -40,8 +40,10 @@ export class AppComponent implements OnDestroy {
         
         // Initialize wake lock state
         this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
-        this.screenWakeLockService.getIsEnabled().subscribe(enabled => {
-          this.isWakeLockEnabled.set(enabled);
+        
+        // Create an effect to react to wake lock state changes
+        effect(() => {
+          this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
         });
       }
     });
