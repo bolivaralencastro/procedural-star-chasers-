@@ -563,8 +563,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
     const isHunting = this.gameMode === 'normal' && this.ships.some(s => s.state === 'hunting');
     const isCoop = this.gameMode === 'asteroid_event' && this.ships.some(s => s.state !== 'paralyzed' && s.state !== 'orbiting');
+    const anyShipCelebrating = this.ships.some(s => s.state === 'celebrating');
     
     this.audioService.updateGameSounds(isOrbiting, isHunting, isCoop, orbitingSpeed);
+    this.audioService.updateBackgroundMusic(isHunting, isCoop, anyShipCelebrating);
   }
 
   private updateShipCollisions() {

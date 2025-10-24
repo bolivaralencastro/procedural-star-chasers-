@@ -6,6 +6,12 @@ export type SoundName = 'launch' | 'capture' | 'celebrate' | 'blink' | 'rescue' 
 export type PooledSoundName = 'explosion' | 'fire';
 type LoopSoundName = 'engine' | 'orbit' | 'background_music';
 
+// Define sound types for better type checking
+export type SoundName = 'launch' | 'capture' | 'celebrate' | 'blink' | 'rescue' | 
+                 'paralyzed' | 'reload' | 'empty' | 'wormhole_open' | 'wormhole_close';
+export type PooledSoundName = 'explosion' | 'fire';
+type LoopSoundName = 'engine' | 'orbit' | 'normal_mode' | 'hunting_theme' | 'cooperative_theme' | 'victory_theme';
+
 // Define the structure for sound assets
 interface SoundAsset {
   name: SoundName | PooledSoundName | LoopSoundName;
@@ -30,10 +36,14 @@ const SOUND_ASSETS: SoundAsset[] = [
   // Pools
   { name: 'explosion', path: 'explosion.wav', type: 'pool', poolSize: 5, initialVolume: 0.4 },
   { name: 'fire', path: 'laser_shoot.wav', type: 'pool', poolSize: 5, initialVolume: 0.3 },
-  // Loops
+  // Loops - Background music tracks
+  { name: 'normal_mode', path: 'deep_space.mp3', type: 'loop', initialVolume: 0.3 },
+  { name: 'hunting_theme', path: 'hunting_theme.mp3', type: 'loop', initialVolume: 0.3 },
+  { name: 'cooperative_theme', path: 'cooperative_theme.mp3', type: 'loop', initialVolume: 0.3 },
+  { name: 'victory_theme', path: 'victory_theme.mp3', type: 'loop', initialVolume: 0.3 },
+  // Other sound effects that might become loops
   { name: 'engine', path: 'engine_hum.wav', type: 'loop', initialVolume: 0 },
   { name: 'orbit', path: 'orbit_hum.wav', type: 'loop', initialVolume: 0 },
-  { name: 'background_music', path: 'deep_space.mp3', type: 'loop', initialVolume: 0.3 },
 ];
 
 @Injectable({
@@ -45,6 +55,7 @@ export class AudioService {
   private audioContextUnlocked = false;
   private sounds = new Map<string, HTMLAudioElement>();
   private soundPools = new Map<string, { pool: HTMLAudioElement[], index: number }>();
+  private currentBackgroundTrack: LoopSoundName | null = null;
 
   constructor() {
     this.loadSounds();
@@ -99,19 +110,28 @@ export class AudioService {
     const newMutedState = !this.isMuted();
     this.isMuted.set(newMutedState);
 
-    const backgroundMusic = this.sounds.get('background_music');
-    if (backgroundMusic) {
-      if (newMutedState) {
-        backgroundMusic.pause();
-      } else {
-        backgroundMusic.play().catch(e => console.error("Background music playback failed", e));
+    // Stop any playing background tracks when muting
+    if (newMutedState && this.currentBackgroundTrack) {
+      const currentTrack = this.sounds.get(this.currentBackgroundTrack);
+      if (currentTrack && !currentTrack.paused) {
+        currentTrack.pause();
+      }
+    } else if (!newMutedState && this.currentBackgroundTrack) {
+      // Resume the appropriate track when unmuting
+      const trackToResume = this.sounds.get(this.currentBackgroundTrack);
+      if (trackToResume) {
+        trackToResume.play().catch(e => console.error(`Background music playback failed for ${this.currentBackgroundTrack}`, e));
       }
     }
     
-    // Mute/unmute all other looping sounds that might be playing
+    // Mute/unmute all other looping sounds that might be playing (non-background music loops like engine, orbit)
     this.sounds.forEach((sound, name) => {
         const asset = SOUND_ASSETS.find(a => a.name === name);
-        if (asset?.type === 'loop' && name !== 'background_music') {
+        if (asset?.type === 'loop' && 
+            name !== 'normal_mode' && 
+            name !== 'hunting_theme' && 
+            name !== 'cooperative_theme' && 
+            name !== 'victory_theme') {
             sound.muted = newMutedState;
         }
     });
@@ -197,6 +217,47 @@ export class AudioService {
 
   private lerp(start: number, end: number, amt: number): number {
     return (1 - amt) * start + amt * end;
+  }
+
+  // Method to change background music based on game state
+  updateBackgroundMusic(isHunting: boolean, isCoop: boolean, anyShipCelebrating: boolean) {
+    if (!this.audioContextUnlocked || this.isMuted()) return;
+
+    let targetTrack: LoopSoundName | null = null;
+
+    if (anyShipCelebrating) {
+      targetTrack = 'victory_theme';
+    } else if (isCoop) {
+      targetTrack = 'cooperative_theme';
+    } else if (isHunting) {
+      targetTrack = 'hunting_theme';
+    } else {
+      targetTrack = 'normal_mode';
+    }
+
+    // If the track is already playing, don't do anything
+    if (this.currentBackgroundTrack === targetTrack) {
+      return;
+    }
+
+    // Stop current background track if any
+    if (this.currentBackgroundTrack) {
+      const currentTrack = this.sounds.get(this.currentBackgroundTrack);
+      if (currentTrack && !currentTrack.paused) {
+        currentTrack.pause();
+        currentTrack.currentTime = 0;
+      }
+    }
+
+    // Play new track if it's not null and different
+    if (targetTrack) {
+      const newTrack = this.sounds.get(targetTrack);
+      if (newTrack) {
+        newTrack.currentTime = 0;
+        newTrack.play().catch(e => console.error(`Background music playback failed for ${targetTrack}`, e));
+      }
+      this.currentBackgroundTrack = targetTrack;
+    }
   }
 
   cleanup() {
