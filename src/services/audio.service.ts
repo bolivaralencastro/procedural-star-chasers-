@@ -80,18 +80,36 @@ export class AudioService {
   private async unlockAudioContext() {
     if (this.audioContextUnlocked) return;
     // A silent sound is played on the first user interaction to unlock the AudioContext.
-    const backgroundMusic = this.sounds.get('background_music');
+    // Use the normal_mode track which will be the default background music
+    const backgroundMusic = this.sounds.get('normal_mode');
     if (backgroundMusic) {
       try {
         const originalVolume = backgroundMusic.volume;
-        backgroundMusic.volume = 0;
+        backgroundMusic.volume = 0; // Temporarily mute for the unlock
         await backgroundMusic.play();
         backgroundMusic.pause();
         backgroundMusic.currentTime = 0;
-        backgroundMusic.volume = originalVolume;
+        backgroundMusic.volume = originalVolume; // Restore original volume
         this.audioContextUnlocked = true;
+        // Now we can play the background music if needed
+        this.attemptToPlayCurrentBackgroundTrack();
       } catch (e) {
         console.error("Audio Context could not be unlocked.", e);
+      }
+    }
+  }
+  
+  private attemptToPlayCurrentBackgroundTrack() {
+    if (!this.audioContextUnlocked || this.isMuted() || !this.currentBackgroundTrack) return;
+    
+    const trackToPlay = this.sounds.get(this.currentBackgroundTrack);
+    if (trackToPlay) {
+      // Attempt to play the current background track
+      const playPromise = trackToPlay.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(e => {
+          console.warn(`Could not play background track ${this.currentBackgroundTrack}`, e);
+        });
       }
     }
   }
@@ -114,7 +132,13 @@ export class AudioService {
       // Resume the appropriate track when unmuting
       const trackToResume = this.sounds.get(this.currentBackgroundTrack);
       if (trackToResume) {
-        trackToResume.play().catch(e => console.error(`Background music playback failed for ${this.currentBackgroundTrack}`, e));
+        // Attempt to play the track - may fail due to browser autoplay policies
+        const playPromise = trackToResume.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.warn(`Background music autoplay prevented for ${this.currentBackgroundTrack}. User interaction required.`, e);
+          });
+        }
       }
     }
     
@@ -248,7 +272,17 @@ export class AudioService {
       const newTrack = this.sounds.get(targetTrack);
       if (newTrack) {
         newTrack.currentTime = 0;
-        newTrack.play().catch(e => console.error(`Background music playback failed for ${targetTrack}`, e));
+        // Attempt to play the track - may fail due to browser autoplay policies
+        const playPromise = newTrack.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            // If playback was prevented due to user interaction requirements, 
+            // log it but don't show an error to user
+            console.warn(`Background music autoplay prevented for ${targetTrack}. User interaction required.`, e);
+            // Store the track so we can play it after user interaction
+            this.currentBackgroundTrack = targetTrack;
+          });
+        }
       }
       this.currentBackgroundTrack = targetTrack;
     }
