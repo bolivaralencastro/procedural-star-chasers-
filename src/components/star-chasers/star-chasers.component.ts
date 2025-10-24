@@ -222,6 +222,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   public audioService = inject(AudioService);
   public wakeLockService = inject(ScreenWakeLockService);
+  private firstInteractionHandled = false; // Track if first interaction happened
 
   // Long-press properties for mobile
   private longPressTimer: any = null;
@@ -244,6 +245,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     this.mouse.pos.x = (event.clientX - rect.left) / this.renderScale;
     this.mouse.pos.y = (event.clientY - rect.top) / this.renderScale;
+    
+    // Handle first interaction to unlock audio
+    if (!this.firstInteractionHandled) {
+      this.audioService.handleFirstInteraction();
+      this.firstInteractionHandled = true;
+    }
   }
   
   @HostListener('document:touchmove', ['$event'])
@@ -270,6 +277,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.contextMenu.visible = false;
       this.cdr.detectChanges();
     }
+    
+    // Handle first interaction to unlock audio
+    if (!this.firstInteractionHandled) {
+      this.audioService.handleFirstInteraction();
+      this.firstInteractionHandled = true;
+    }
+    
     if (event.button === 0) { // Only left click
       if (this.mouseInteractionEnabled()) {
           this.mouse.isDown = true;
@@ -282,6 +296,9 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   @HostListener('document:touchstart', ['$event'])
   onTouchStart(event: TouchEvent) {
     if (!this.isMobile()) return; // Only handle this for mobile devices
+    
+    // Handle first interaction to unlock audio
+    this.audioService.handleFirstInteraction();
     
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const touch = event.touches[0];

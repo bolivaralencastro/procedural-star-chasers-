@@ -50,6 +50,7 @@ export class AudioService {
   private sounds = new Map<string, HTMLAudioElement>();
   private soundPools = new Map<string, { pool: HTMLAudioElement[], index: number }>();
   private currentBackgroundTrack: LoopSoundName | null = null;
+  private firstInteractionHandled = false; // Track if first user interaction happened
 
   constructor() {
     this.loadSounds();
@@ -111,6 +112,23 @@ export class AudioService {
           console.warn(`Could not play background track ${this.currentBackgroundTrack}`, e);
         });
       }
+    }
+  }
+
+  // Method to handle first user interaction to unlock audio
+  public handleFirstInteraction() {
+    if (this.firstInteractionHandled) return;
+    
+    this.firstInteractionHandled = true;
+    
+    // Try to unlock audio context if not already unlocked
+    if (!this.audioContextUnlocked) {
+      this.unlockAudioContext();
+    }
+    
+    // If we have a background track that should be playing, try to play it now
+    if (this.currentBackgroundTrack && !this.isMuted()) {
+      this.attemptToPlayCurrentBackgroundTrack();
     }
   }
 
