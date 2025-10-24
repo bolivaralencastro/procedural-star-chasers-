@@ -1,16 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 
 // Define sound types for better type checking
-export type SoundName = 'launch' | 'capture' | 'celebrate' | 'blink' | 'rescue' | 'paralyzed' | 
-                 'reload' | 'empty' | 'wormhole_open' | 'wormhole_close';
-export type PooledSoundName = 'explosion' | 'fire';
-type LoopSoundName = 'engine' | 'orbit' | 'background_music';
-
-// Define sound types for better type checking
 export type SoundName = 'launch' | 'capture' | 'celebrate' | 'blink' | 'rescue' | 
                  'paralyzed' | 'reload' | 'empty' | 'wormhole_open' | 'wormhole_close';
 export type PooledSoundName = 'explosion' | 'fire';
-type LoopSoundName = 'engine' | 'orbit' | 'normal_mode' | 'hunting_theme' | 'cooperative_theme' | 'victory_theme';
+export type LoopSoundName = 'engine' | 'orbit' | 'background_music' | 'normal_mode' | 'hunting_theme' | 'cooperative_theme' | 'victory_theme';
 
 // Define the structure for sound assets
 interface SoundAsset {

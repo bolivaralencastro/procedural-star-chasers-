@@ -566,6 +566,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     const anyShipCelebrating = this.ships.some(s => s.state === 'celebrating');
     
     this.audioService.updateGameSounds(isOrbiting, isHunting, isCoop, orbitingSpeed);
+    // Passar os parâmetros para o serviço de áudio gerenciar as transições de música
+    // A lógica de música agora está totalmente gerenciada no serviço de áudio
     this.audioService.updateBackgroundMusic(isHunting, isCoop, anyShipCelebrating);
   }
 
