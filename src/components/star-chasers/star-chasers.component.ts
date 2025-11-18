@@ -139,11 +139,13 @@ interface ScoreTooltip {
   maxLife: number;
 }
 
-interface RadioMessage {
-  id: number;
-  text: string;
+interface RadioBubble {
+  shipId: number;
+  textLines: string[];
+  position: Vector2D;
+  life: number;
+  maxLife: number;
   color: string;
-  expiresAt: number;
 }
 
 interface Nebula {
@@ -239,10 +241,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private activeControlKeys = new Set<ControlKey>();
   private mouseInteractionBeforeControl = true;
 
-  public radioMessages = signal<RadioMessage[]>([]);
-  private nextRadioMessageId = 1;
+  private radioBubbles: RadioBubble[] = [];
   private globalChatterCooldownUntil = 0;
   private proximityCooldowns = new Map<string, number>();
+  private shipChatterAvailableAt = new Map<number, number>();
+  private readonly SHIP_CHATTER_DELAY_RANGE: [number, number] = [9000, 16000];
 
   // Long-press properties for mobile
   private longPressTimer: any = null;
@@ -715,7 +718,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.updateExplosionParticles();
     this.updateScoreTooltips();
     this.updateNebulas();
-    this.updateRadioMessages();
+    this.updateRadioBubbles();
     this.ships.forEach(ship => this.updateShip(ship));
     this.updateShipCollisions();
   }
@@ -733,14 +736,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     // Passar os parâmetros para o serviço de áudio gerenciar as transições de música
     // A lógica de música agora está totalmente gerenciada no serviço de áudio
     this.audioService.updateBackgroundMusic(isHunting, isCoop, anyShipCelebrating);
-  }
-
-  private updateRadioMessages() {
-    const now = Date.now();
-    const filtered = this.radioMessages().filter(message => message.expiresAt > now);
-    if (filtered.length !== this.radioMessages().length) {
-      this.radioMessages.set(filtered);
-    }
   }
 
   private updateShipCollisions() {
@@ -817,22 +812,28 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       return false;
     }
 
+    const shipAvailableAt = this.shipChatterAvailableAt.get(ship.id) ?? 0;
+    if (now < shipAvailableAt) {
+      return false;
+    }
+
     const line = this.radioService.takeLine(ship.color, context);
     if (!line) {
       return false;
     }
 
-    const expiresAt = now + this.radioService.getMessageDuration();
-    const message: RadioMessage = {
-      id: this.nextRadioMessageId++,
-      text: line,
+    const bubbleLife = Math.round(this.radioService.getMessageDuration() / 16.67);
+    this.radioBubbles.push({
+      shipId: ship.id,
+      textLines: this.wrapRadioText(line, 240),
+      position: ship.position.clone(),
+      life: bubbleLife,
+      maxLife: bubbleLife,
       color: ship.hexColor,
-      expiresAt,
-    };
+    });
 
-    const existing = this.radioMessages().filter(m => m.expiresAt > now);
-    this.radioMessages.set([...existing, message]);
     this.globalChatterCooldownUntil = now + this.radioService.getGlobalCooldown();
+    this.shipChatterAvailableAt.set(ship.id, now + this.getShipChatterDelay());
     return true;
   }
 
@@ -1523,6 +1524,23 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private updateRadioBubbles() {
+    for (let i = this.radioBubbles.length - 1; i >= 0; i--) {
+      const bubble = this.radioBubbles[i];
+      bubble.life--;
+      if (bubble.life <= 0) {
+        this.radioBubbles.splice(i, 1);
+        continue;
+      }
+
+      const ship = this.ships.find(c => c.id === bubble.shipId);
+      if (ship) {
+        bubble.position.x = ship.position.x;
+        bubble.position.y = ship.position.y - ship.radius - 55;
+      }
+    }
+  }
+
   private updateParticles() {
     for (let i = this.starParticles.length - 1; i >= 0; i--) {
         const p = this.starParticles[i];
@@ -1822,6 +1840,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
 
     this.drawScoreTooltips();
+    this.drawRadioBubbles();
     this.drawCursor();
 
     this.ctx.restore();
@@ -2107,6 +2126,58 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private drawRadioBubbles() {
+    const fadeDuration = 30;
+    this.radioBubbles.forEach(bubble => {
+      let opacity = 1;
+      if (bubble.life < fadeDuration) {
+        opacity = bubble.life / fadeDuration;
+      } else if (bubble.maxLife - bubble.life < fadeDuration) {
+        opacity = (bubble.maxLife - bubble.life) / fadeDuration;
+      }
+
+      this.ctx.save();
+      this.ctx.globalAlpha = opacity;
+      const font = 'bold 14px "Courier New", monospace';
+      this.ctx.font = font;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+
+      const lineHeight = 18;
+      const padding = 12;
+      const lines = bubble.textLines.length > 0 ? bubble.textLines : [''];
+      const textWidth = Math.max(...lines.map(line => this.ctx.measureText(line).width));
+      const boxWidth = textWidth + padding * 2;
+      const boxHeight = lines.length * lineHeight + padding * 2;
+      const boxX = bubble.position.x - boxWidth / 2;
+      const boxY = bubble.position.y - boxHeight;
+
+      this.ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+      this.ctx.strokeStyle = `${bubble.color}CC`;
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(bubble.position.x - 8, boxY + boxHeight);
+      this.ctx.lineTo(bubble.position.x, boxY + boxHeight + 10);
+      this.ctx.lineTo(bubble.position.x + 8, boxY + boxHeight);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      this.ctx.fillStyle = '#F9FAFB';
+      lines.forEach((line, index) => {
+        const textY = boxY + padding + lineHeight * index + lineHeight / 2;
+        this.ctx.fillText(line, bubble.position.x, textY);
+      });
+
+      this.ctx.restore();
+    });
+  }
+
   private drawScoreTooltips() {
     this.scoreTooltips.forEach(tooltip => {
         const fadeDuration = 30;
@@ -2201,5 +2272,38 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.ctx.stroke();
     }
     this.ctx.restore();
+  }
+
+  private wrapRadioText(text: string, maxWidth: number): string[] {
+    const font = 'bold 14px "Courier New", monospace';
+    this.ctx.save();
+    this.ctx.font = font;
+
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = this.ctx.measureText(testLine);
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    this.ctx.restore();
+    return lines;
+  }
+
+  private getShipChatterDelay(): number {
+    const [min, max] = this.SHIP_CHATTER_DELAY_RANGE;
+    return min + Math.random() * (max - min);
   }
 }
