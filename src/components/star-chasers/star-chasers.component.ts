@@ -32,7 +32,9 @@ class Vector2D {
   clone() { return new Vector2D(this.x, this.y); }
 }
 
-type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed';
+type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed' | 'controlled';
+
+type ControlKey = 'up' | 'down' | 'left' | 'right' | 'space' | 'reload';
 
 interface Ship {
   id: number;
@@ -233,6 +235,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private radioService = inject(RadioChatterService);
   private firstInteractionHandled = false; // Track if first interaction happened
 
+  private controlledShipId: number | null = null;
+  private activeControlKeys = new Set<ControlKey>();
+  private mouseInteractionBeforeControl = true;
+
   public radioMessages = signal<RadioMessage[]>([]);
   private nextRadioMessageId = 1;
   private globalChatterCooldownUntil = 0;
@@ -266,6 +272,39 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     if (!this.firstInteractionHandled) {
       this.audioService.handleFirstInteraction();
       this.firstInteractionHandled = true;
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key.toLowerCase() === 'p') {
+      event.preventDefault();
+      this.toggleShipControl();
+      return;
+    }
+
+    if (this.controlledShipId === null) {
+      return;
+    }
+
+    const key = this.normalizeControlKey(event.key);
+    if (!key) {
+      return;
+    }
+
+    if (key === 'reload') {
+      this.startManualReload();
+    }
+
+    this.activeControlKeys.add(key);
+    event.preventDefault();
+  }
+
+  @HostListener('document:keyup', ['$event'])
+  onKeyUp(event: KeyboardEvent) {
+    const key = this.normalizeControlKey(event.key);
+    if (key) {
+      this.activeControlKeys.delete(key);
     }
   }
   
@@ -484,6 +523,71 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.mobileMenuVisible.update(v => !v);
     this.contextMenu.visible = false; // Close context menu if open
     this.cdr.detectChanges();
+  }
+
+  private normalizeControlKey(key: string): ControlKey | null {
+    const normalized = key.toLowerCase();
+    switch (normalized) {
+      case 'arrowup':
+        return 'up';
+      case 'arrowdown':
+        return 'down';
+      case 'arrowleft':
+        return 'left';
+      case 'arrowright':
+        return 'right';
+      case ' ': // Space key returns a single space character
+      case 'space':
+      case 'spacebar':
+        return 'space';
+      case 'r':
+        return 'reload';
+      default:
+        return null;
+    }
+  }
+
+  private toggleShipControl() {
+    if (this.controlledShipId !== null) {
+      const controlledShip = this.ships.find(ship => ship.id === this.controlledShipId);
+      if (controlledShip && controlledShip.state === 'controlled') {
+        controlledShip.state = 'idle';
+      }
+      this.controlledShipId = null;
+      this.activeControlKeys.clear();
+      this.mouseInteractionEnabled.set(this.mouseInteractionBeforeControl);
+      this.updateCursorVisibility();
+      return;
+    }
+
+    const orbitingShips = this.ships.filter(ship => ship.state === 'orbiting');
+    if (orbitingShips.length === 1) {
+      const targetShip = orbitingShips[0];
+      this.controlledShipId = targetShip.id;
+      targetShip.state = 'controlled';
+      targetShip.velocity.multiply(0);
+      targetShip.acceleration.multiply(0);
+      this.mouseInteractionBeforeControl = this.mouseInteractionEnabled();
+      this.mouseInteractionEnabled.set(false);
+      this.updateCursorVisibility();
+    }
+  }
+
+  private updateCursorVisibility() {
+    if (!this.canvasRef) {
+      return;
+    }
+    this.canvasRef.nativeElement.style.cursor = this.controlledShipId !== null ? 'none' : 'default';
+  }
+
+  private startManualReload() {
+    if (this.controlledShipId === null) {
+      return;
+    }
+    const controlledShip = this.ships.find(ship => ship.id === this.controlledShipId);
+    if (controlledShip && controlledShip.reloadTimer <= 0 && controlledShip.ammo < controlledShip.maxAmmo) {
+      controlledShip.reloadTimer = controlledShip.reloadDuration;
+    }
   }
 
   ngAfterViewInit(): void {
@@ -1064,6 +1168,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     if (ship.isBlinking > 0) ship.isBlinking--;
     if (ship.fireCooldown > 0) ship.fireCooldown -= deltaTime;
 
+    this.updateReloadTimer(ship, deltaTime);
+
     if (ship.color === 'Blue') {
       ship.blinkTimer -= deltaTime;
       if (ship.blinkTimer <= 0 && (ship.state === 'idle' || ship.state === 'hunting')) {
@@ -1080,25 +1186,19 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     let asteroidTarget: Asteroid | null = null;
     let predictedAsteroidPosition: Vector2D | null = null;
     // Cooperative Mode Logic
-    if (this.gameMode === 'asteroid_event') {
+    if (ship.state === 'controlled') {
+      this.applyManualControls(ship, deltaTime);
+    } else if (this.gameMode === 'asteroid_event') {
       if (ship.state === 'paralyzed') {
         ship.paralyzeTimer -= deltaTime;
         if (ship.paralyzeTimer <= 0) {
           ship.state = 'idle';
         }
-      } else if (ship.state !== 'orbiting' && ship.state !== 'launched') {
+      } else if (ship.state !== 'orbiting' && ship.state !== 'launched' && ship.state !== 'controlled') {
         let target: Vector2D | null = null;
         let isRescuing = false;
-        
-        // Reloading logic
-        if (ship.reloadTimer > 0) {
-            ship.reloadTimer -= deltaTime;
-            if (ship.reloadTimer <= 0) {
-                ship.ammo = ship.maxAmmo;
-                this.audioService.playSound('reload');
-            }
-        } else if (ship.ammo <= 0) {
-            ship.reloadTimer = ship.reloadDuration;
+        if (ship.reloadTimer <= 0 && ship.ammo <= 0) {
+          ship.reloadTimer = ship.reloadDuration;
         }
   
         // Priority 1: Rescue paralyzed allies
@@ -1240,8 +1340,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             ship.state = (this.gameMode === 'normal' && this.targetStar.exists) ? 'hunting' : 'idle';
         }
     }
-    
-    if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed') {
+
+    if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed' && ship.state !== 'controlled') {
       if (this.mouseInteractionEnabled() && ship.state !== 'launched') {
         const distToMouse = Vector2D.distance(ship.position, this.mouse.pos);
         if (distToMouse < this.mouse.orbitRadius) {
@@ -1260,7 +1360,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         }
       }
     }
-    
+
     if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed') {
         ship.velocity.add(ship.acceleration);
         this.nebulas.forEach(nebula => {
@@ -1306,6 +1406,43 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     else {
       ship.tail.push(ship.position.clone());
       if (ship.tail.length > this.TAIL_LENGTH) ship.tail.shift();
+    }
+  }
+
+  private updateReloadTimer(ship: Ship, deltaTime: number) {
+    if (ship.reloadTimer > 0) {
+      ship.reloadTimer -= deltaTime;
+      if (ship.reloadTimer <= 0) {
+        ship.ammo = ship.maxAmmo;
+        ship.reloadTimer = 0;
+        this.audioService.playSound('reload');
+      }
+    }
+  }
+
+  private applyManualControls(ship: Ship, _deltaTime: number) {
+    const thrust = 0.15;
+    const manualAcceleration = new Vector2D();
+
+    if (this.activeControlKeys.has('up')) manualAcceleration.y -= thrust;
+    if (this.activeControlKeys.has('down')) manualAcceleration.y += thrust;
+    if (this.activeControlKeys.has('left')) manualAcceleration.x -= thrust;
+    if (this.activeControlKeys.has('right')) manualAcceleration.x += thrust;
+
+    ship.acceleration.add(manualAcceleration);
+    ship.velocity.multiply(0.995);
+
+    const firingPressed = this.activeControlKeys.has('space');
+    if (firingPressed && ship.fireCooldown <= 0 && ship.reloadTimer <= 0) {
+      if (ship.ammo > 0) {
+        this.fireProjectile(ship);
+      } else {
+        this.startManualReload();
+      }
+    }
+
+    if (this.activeControlKeys.has('reload')) {
+      this.startManualReload();
     }
   }
 
@@ -2006,6 +2143,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private drawCursor() {
     this.ctx.save();
+    if (this.controlledShipId !== null) {
+      this.ctx.restore();
+      return;
+    }
     if (this.mouseInteractionEnabled()) {
       const isCharging = this.mouse.isDown && this.ships.some(c => c.state === 'orbiting');
       const pulse = Math.sin(Date.now() / 150) * 1.5;
