@@ -1948,33 +1948,30 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.ctx.fill();
 
     } else {
-      const planetX = this.mouse.pos.x;
-      const planetY = this.mouse.pos.y;
-      const planetRadius = 10;
-      const glowGrad = this.ctx.createRadialGradient(planetX, planetY, planetRadius, planetX, planetY, planetRadius * 2.5);
-      glowGrad.addColorStop(0, 'rgba(50, 50, 50, 0.2)');
-      glowGrad.addColorStop(1, 'rgba(50, 50, 50, 0)');
-      this.ctx.fillStyle = glowGrad;
+      const cursorX = this.mouse.pos.x;
+      const cursorY = this.mouse.pos.y;
+      const coreRadius = 8;
+      const glowRadius = 32;
+      const glowGradient = this.ctx.createRadialGradient(cursorX, cursorY, coreRadius, cursorX, cursorY, glowRadius);
+      glowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+      glowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.3)');
+      glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
       this.ctx.beginPath();
-      this.ctx.arc(planetX, planetY, planetRadius * 2.5, 0, Math.PI * 2);
+      this.ctx.fillStyle = glowGradient;
+      this.ctx.arc(cursorX, cursorY, glowRadius, 0, Math.PI * 2);
       this.ctx.fill();
-      this.ctx.fillStyle = '#4a4a4a';
+
       this.ctx.beginPath();
-      this.ctx.arc(planetX, planetY, planetRadius, 0, Math.PI * 2);
+      this.ctx.fillStyle = '#050505';
+      this.ctx.arc(cursorX, cursorY, coreRadius, 0, Math.PI * 2);
       this.ctx.fill();
-      this.ctx.strokeStyle = '#333333';
-      this.ctx.lineWidth = 1;
+
+      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      this.ctx.lineWidth = 2;
+      this.ctx.beginPath();
+      this.ctx.arc(cursorX, cursorY, coreRadius + 2, 0, Math.PI * 2);
       this.ctx.stroke();
-      this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-      this.ctx.beginPath();
-      this.ctx.arc(planetX + planetRadius * 0.4, planetY - planetRadius * 0.3, planetRadius * 0.3, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.beginPath();
-      this.ctx.arc(planetX - planetRadius * 0.5, planetY - planetRadius * 0.5, planetRadius * 2, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.beginPath();
-      this.ctx.arc(planetX - planetRadius * 0.2, planetY + planetRadius * 0.6, planetRadius * 0.4, 0, Math.PI * 2);
-      this.ctx.fill();
     }
     this.ctx.restore();
   }
