@@ -638,31 +638,31 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             if (dist < combinedRadius) {
                 // Collision detected
                 const overlap = combinedRadius - dist;
-                const normal = shipA.position.clone().subtract(shipB.position).normalize();
-                
+                const normal = dist === 0
+                    ? new Vector2D(1, 0)
+                    : shipA.position.clone().subtract(shipB.position).normalize();
+
                 // 1. Static resolution: Separate them to prevent sticking
                 shipA.position.add(normal.clone().multiply(overlap / 2));
                 shipB.position.subtract(normal.clone().multiply(overlap / 2));
-                
-                // 2. Dynamic resolution: Elastic collision response
-                const tangent = new Vector2D(-normal.y, normal.x);
 
-                const vAn = shipA.velocity.x * normal.x + shipA.velocity.y * normal.y;
-                const vAt = shipA.velocity.x * tangent.x + shipA.velocity.y * tangent.y;
-                const vBn = shipB.velocity.x * normal.x + shipB.velocity.y * normal.y;
-                const vBt = shipB.velocity.x * tangent.x + shipB.velocity.y * tangent.y;
+                // 2. Dynamic resolution: Billiard-style elastic collision
+                const relativeVelocity = shipA.velocity.clone().subtract(shipB.velocity);
+                const normalSpeed = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
 
-                // Swap velocities along the normal (for equal mass)
-                const vAn_new_scalar = vBn;
-                const vBn_new_scalar = vAn;
+                // Skip if ships are already moving apart
+                if (normalSpeed > 0) {
+                  continue;
+                }
 
-                const vAn_new_vec = normal.clone().multiply(vAn_new_scalar);
-                const vAt_new_vec = tangent.clone().multiply(vAt);
-                const vBn_new_vec = normal.clone().multiply(vBn_new_scalar);
-                const vBt_new_vec = tangent.clone().multiply(vBt);
+                const restitution = 0.9; // Slight energy loss to avoid jitter
+                const massA = Math.max(1, radiusA * radiusA);
+                const massB = Math.max(1, radiusB * radiusB);
+                const impulseScalar = (-(1 + restitution) * normalSpeed) / (1 / massA + 1 / massB);
+                const impulse = normal.clone().multiply(impulseScalar);
 
-                shipA.velocity = vAn_new_vec.add(vAt_new_vec);
-                shipB.velocity = vBn_new_vec.add(vBt_new_vec);
+                shipA.velocity.add(impulse.clone().divide(massA));
+                shipB.velocity.subtract(impulse.clone().divide(massB));
             }
         }
     }
