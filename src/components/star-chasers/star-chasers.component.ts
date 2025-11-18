@@ -583,6 +583,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.canvasRef.nativeElement.style.cursor = this.controlledShipId !== null ? 'none' : 'default';
   }
 
+  private isShipCurrentlyControlled(ship: Ship): boolean {
+    return this.controlledShipId === ship.id;
+  }
+
   private startManualReload() {
     if (this.controlledShipId === null) {
       return;
@@ -952,7 +956,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       for (let i = 0; i < count; i++) {
           this.spawnAsteroid('large');
       }
-      this.ships.forEach(s => s.state = 'idle'); // Reset state for cooperative mode
+      this.ships.forEach(s => {
+        if (this.isShipCurrentlyControlled(s)) {
+          return;
+        }
+        s.state = 'idle';
+      }); // Reset state for cooperative mode
       const announcer = this.getRandomActiveShip();
       if (announcer) {
         this.enqueueRadioMessage(announcer, 'meteor_event');
@@ -982,7 +991,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         }
         if (!this.targetStar.isDespawning && Date.now() > this.targetStar.spawnTime + this.targetStar.lifetime) {
             this.targetStar.isDespawning = true;
-            this.ships.forEach(c => c.state = 'idle');
+            this.ships.forEach(c => {
+              if (this.isShipCurrentlyControlled(c)) {
+                return;
+              }
+              c.state = 'idle';
+            });
         }
 
         const totalRepulsion = new Vector2D();
@@ -1039,7 +1053,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.targetStar.spawnTime = Date.now();
     this.targetStar.lifetime = 12000 + Math.random() * 6000;
     this.starParticles = [];
-    this.ships.forEach(c => c.state = 'hunting');
+    this.ships.forEach(c => {
+      if (this.isShipCurrentlyControlled(c)) {
+        return;
+      }
+      c.state = 'hunting';
+    });
   }
 
   private scheduleNextStar() {
@@ -1193,7 +1212,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       if (ship.state === 'paralyzed') {
         ship.paralyzeTimer -= deltaTime;
         if (ship.paralyzeTimer <= 0) {
-          ship.state = 'idle';
+          ship.state = this.isShipCurrentlyControlled(ship) ? 'controlled' : 'idle';
         }
       } else if (ship.state !== 'orbiting' && ship.state !== 'launched') {
         let target: Vector2D | null = null;
@@ -1211,7 +1230,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
           if (dist < ship.radius + paralyzedAlly.radius) {
             if (ship.score > 0) {
               ship.score--;
-              paralyzedAlly.state = 'idle';
+              paralyzedAlly.state = this.isShipCurrentlyControlled(paralyzedAlly) ? 'controlled' : 'idle';
               paralyzedAlly.paralyzeTimer = 0;
               this.createStarExplosion(ship.position, 20);
               this.audioService.playSound('rescue');
@@ -1318,7 +1337,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
           case 'celebrating':
               this.performCelebration(ship);
               ship.celebrationTimer -= deltaTime;
-              if(ship.celebrationTimer <= 0) ship.state = 'idle';
+              if(ship.celebrationTimer <= 0 && !this.isShipCurrentlyControlled(ship)) ship.state = 'idle';
               break;
       }
     }
@@ -1488,13 +1507,15 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
     this.targetStar.exists = false;
     this.starParticles = [];
-    winner.state = 'celebrating';
+    if (!this.isShipCurrentlyControlled(winner)) {
+      winner.state = 'celebrating';
+      // FIX: The celebration duration is a property of the ship, not the component.
+      winner.celebrationTimer = winner.celebrationDuration;
+    }
     this.audioService.playSound('celebrate');
     this.enqueueRadioMessage(winner, 'star_capture');
-    // FIX: The celebration duration is a property of the ship, not the component.
-    winner.celebrationTimer = winner.celebrationDuration;
     this.ships.forEach(c => {
-        if (c.id !== winner.id) c.state = 'idle';
+        if (c.id !== winner.id && !this.isShipCurrentlyControlled(c)) c.state = 'idle';
     });
     this.createScoreTooltip(winner);
     this.scheduleNextStar();
@@ -1694,8 +1715,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         this.ships.forEach(ship => {
             if (ship.state !== 'paralyzed' && Vector2D.distance(asteroid.position, ship.position) < asteroid.radius + ship.radius) {
                 ship.score = Math.max(0, ship.score - 1);
-                ship.state = 'paralyzed';
-                ship.paralyzeTimer = 5000;
+                const isControlled = this.isShipCurrentlyControlled(ship);
+                if (!isControlled) {
+                  ship.state = 'paralyzed';
+                  ship.paralyzeTimer = 5000;
+                }
                 ship.velocity = asteroid.velocity.clone().multiply(0.2);
                 this.createStarExplosion(ship.position, 30);
                 this.audioService.playPooledSound('explosion');
