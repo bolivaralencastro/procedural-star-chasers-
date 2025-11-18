@@ -146,6 +146,7 @@ interface RadioBubble {
   life: number;
   maxLife: number;
   color: string;
+  context: RadioContext;
 }
 
 interface Nebula {
@@ -243,6 +244,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private radioBubbles: RadioBubble[] = [];
   private globalChatterCooldownUntil = 0;
+  private starCaptureLockUntil = 0;
   private proximityCooldowns = new Map<string, number>();
   private shipChatterAvailableAt = new Map<number, number>();
   private readonly SHIP_CHATTER_DELAY_RANGE: [number, number] = [9000, 16000];
@@ -440,6 +442,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             ship.position.x - this.mouse.pos.x
           ).normalize();
           ship.velocity = tangent.multiply(launchSpeed);
+          this.triggerLaunchChatter(ship);
         }
       });
     }
@@ -810,14 +813,22 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private triggerLaunchChatter(ship: Ship) {
+    this.enqueueRadioMessage(ship, 'launch');
+  }
+
   private enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
     const now = Date.now();
-    if (now < this.globalChatterCooldownUntil) {
+    const isStarCapture = context === 'star_capture';
+    if (!isStarCapture && now < this.starCaptureLockUntil) {
+      return false;
+    }
+    if (!isStarCapture && now < this.globalChatterCooldownUntil) {
       return false;
     }
 
     const shipAvailableAt = this.shipChatterAvailableAt.get(ship.id) ?? 0;
-    if (now < shipAvailableAt) {
+    if (!isStarCapture && now < shipAvailableAt) {
       return false;
     }
 
@@ -834,10 +845,15 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       life: bubbleLife,
       maxLife: bubbleLife,
       color: ship.hexColor,
+      context,
     });
 
     this.globalChatterCooldownUntil = now + this.radioService.getGlobalCooldown();
     this.shipChatterAvailableAt.set(ship.id, now + this.getShipChatterDelay());
+    if (isStarCapture) {
+      this.starCaptureLockUntil = now + this.radioService.getMessageDuration();
+      this.radioBubbles = this.radioBubbles.filter(bubble => bubble.context === 'star_capture');
+    }
     return true;
   }
 
