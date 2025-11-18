@@ -6,7 +6,8 @@ export type RadioContext =
   | 'star_capture'
   | 'meteor_event'
   | 'paralyzed'
-  | 'rescue';
+  | 'rescue'
+  | 'launch';
 
 type LinePools = Record<ShipColor, Record<RadioContext, string[]>>;
 
@@ -20,6 +21,7 @@ export class RadioChatterService {
     meteor_event: [12000, 15000],
     paralyzed: [8000, 13000],
     rescue: [8000, 13000],
+    launch: [6000, 11000],
   };
 
   private readonly linePools: LinePools = {
@@ -36,7 +38,10 @@ export class RadioChatterService {
         'Bora dividir esse corredor estreito, mas sem arranhar.',
         'Wow, quase fizemos um duo acrobático!',
         'Espero que tenha ouvido minha buzina cósmica.',
-        'Ficou colado? Aproveita o vácuo e segura firme.'
+        'Ficou colado? Aproveita o vácuo e segura firme.',
+        'A curva foi apertada demais até pra mim, respira.',
+        'Tão perto que quase ouvi seu motor cantar.',
+        'Se vier no meu encalço, prepara pra faísca.'
       ],
       star_capture: [
         'Roubei essa estrela antes dela perceber.',
@@ -50,7 +55,10 @@ export class RadioChatterService {
         'Velocidade e estilo: estrela no bolso.',
         'Encontrei o ponto certo, sincronizado.',
         'Bingo! Brilho vermelho em primeiro lugar.',
-        'Confere aí no placar, subi mais um degrau.'
+        'Confere aí no placar, subi mais um degrau.',
+        'Nem precisei frear, só estendi a mão.',
+        'Pontuação subindo que nem foguete, viu?',
+        'Roubei o holofote e deixei rastro vermelho.'
       ],
       meteor_event: [
         'Chuva de pedras? Hora de acelerar!',
@@ -64,7 +72,10 @@ export class RadioChatterService {
         'Vocês cobrem, eu avanço: plano perfeito.',
         'Hora de mostrar quem manda nesse cinturão.',
         'Vamos torar essas pedras antes que esquentem.',
-        'Energia máxima, ninguém vai parar a esquadrilha.'
+        'Energia máxima, ninguém vai parar a esquadrilha.',
+        'Alvo travado, vou riscar o céu com eles.',
+        'Deixem alguns pra mim, quero colecionar crateras.',
+        'Seja meteoro ou chuva, eu corto no meio.'
       ],
       paralyzed: [
         'Droga, fiquei travada! Preciso de um toque.',
@@ -78,7 +89,10 @@ export class RadioChatterService {
         'Não me deixem aqui, ainda tenho fogo pra gastar.',
         'Paralisada, mas não derrotada. Ajuda!',
         'Meu painel piscou em vermelho. SOS!',
-        'Energia caiu, esperando reparo rápido.'
+        'Energia caiu, esperando reparo rápido.',
+        'Escudos fritaram, to sem reação.',
+        'Parada total, mas ainda com chama.',
+        'Tiraram meu volante, alguém dirige por mim?'
       ],
       rescue: [
         'Valeu pela mão, reacendendo motores!',
@@ -92,7 +106,18 @@ export class RadioChatterService {
         'Sistema ok, bora compensar o tempo parado.',
         'Ganhamos tempo, agora eu acelero mais.',
         'Reparo recebido, vou devolver em fogo.',
-        'Estou livre outra vez, rumo à linha de frente.'
+        'Estou livre outra vez, rumo à linha de frente.',
+        'Favores pagos em velocidade dobrada.',
+        'Voltei tinindo, me acompanhem se puderem.',
+        'Descanso acabou, hora de pegar atalho.'
+      ],
+      launch: [
+        'Joguei o corpo pra frente, catapulta perfeita!',
+        'Fui arremessada, agora é só cortar o vento.',
+        'Solta que eu deslizo, motor já tá gritando.',
+        'Mouse puxou, faísca voou. Valeu pelo impulso!',
+        'Curti o estilingue, mira outra estrela pra mim.',
+        'Se lançarem de novo, eu faço pirueta dupla.'
       ],
     },
     Green: {
@@ -108,7 +133,10 @@ export class RadioChatterService {
         'Adoro quando ficamos pertinho, parece dança orbital.',
         'Tá confortável aí? Posso aproximar mais.',
         'Sem arranhões, só boas vibrações ao redor.',
-        'Fiz curva ampla pra manter a amizade intacta.'
+        'Fiz curva ampla pra manter a amizade intacta.',
+        'Cheguei devagarinho pra não assustar.',
+        'Nossa sombra quase virou uma só.',
+        'Aproximando com cuidado, respirem juntos.'
       ],
       star_capture: [
         'Peguei uma estrela novinha, quem quer luz extra?',
@@ -122,7 +150,10 @@ export class RadioChatterService {
         'Bom trabalho, equipe, vou guardar essa aqui.',
         'Apontei, alcancei, capturei. Suave.',
         'Essa centelha rende um jardim inteiro.',
-        'Missão de coleta cumprida, seguindo.'
+        'Missão de coleta cumprida, seguindo.',
+        'Brilho seguro, mantive a órbita limpa.',
+        'Contagem verde subindo, obrigada pela ajuda.',
+        'Estrela acolhida, vamos cuidar dela juntos.'
       ],
       meteor_event: [
         'Meteoros chegando! Vamos cobrir uns aos outros.',
@@ -136,7 +167,10 @@ export class RadioChatterService {
         'Posso chamar as rotações, só seguir meus pingues.',
         'Meteoros não são páreo pra três cabeças.',
         'Coesão primeiro, depois velocidade.',
-        'Refresquem os escudos, vai sacudir.'
+        'Refresquem os escudos, vai sacudir.',
+        'Vamos dividir essa chuva, nada de desperdício.',
+        'Mantenham a calma, cuidamos de cada pedra.',
+        'Passo a passo, meteoros derretem na harmonia.'
       ],
       paralyzed: [
         'Ai! Sistemas travados, preciso de assistência.',
@@ -150,7 +184,10 @@ export class RadioChatterService {
         'Sinalizando SOS discreto, alguém por perto?',
         'Sem movimento, mas ouvindo vocês. Ajuda!',
         'Perdi propulsão, mantenham o ritmo.',
-        'Travada, porém confiante no resgate.'
+        'Travada, porém confiante no resgate.',
+        'Minha tela ficou verde-clara e travou, socorro.',
+        'Se puderem, só um empurrãozinho ecológico.',
+        'Achei uma pausa indesejada, preciso sair.'
       ],
       rescue: [
         'Obrigada! Energia verde restaurada.',
@@ -164,7 +201,18 @@ export class RadioChatterService {
         'Obrigada pelo cuidado, equipe.',
         'Estou ativa, quem precisa de ajuda agora?',
         'Nada como amizade para reativar motores.',
-        'Confiança renovada, vamos limpar o setor.'
+        'Confiança renovada, vamos limpar o setor.',
+        'Refiz a rota, volto em formação.',
+        'Alívio total, agora posso cobrir vocês.',
+        'Energia verde recarregada, bora cooperar.'
+      ],
+      launch: [
+        'Catapultada com carinho, ajustando os vetores.',
+        'Obrigada pelo impulso, já estou recolhendo dados.',
+        'Que lançamento suave, parecia planar no vento.',
+        'Voando longe graças ao mouse amigo.',
+        'Lanço calculado, agora sigo a trilha brilhante.',
+        'Estilingue concluído, mantenham a formação.'
       ],
     },
     Blue: {
@@ -194,7 +242,10 @@ export class RadioChatterService {
         'Missão de coleta concluída com 0,01% de erro.',
         'Brilho estabilizado, seguimos.',
         'Registro atualizado: mais uma conquista azul.',
-        'Observação: adrenalina elevada. Gostei.'
+        'Observação: adrenalina elevada. Gostei.',
+        'Precisão confirmada, estrela integrada ao inventário.',
+        'Relatório: contagem incrementada com sucesso.',
+        'Zero ruído na coleta, apenas resultado.'
       ],
       meteor_event: [
         'Alerta de meteoros: ajustando prioridades.',
@@ -208,7 +259,10 @@ export class RadioChatterService {
         'Podemos varrer em três ondas, sem pressa.',
         'Estabilizando rota de fuga, caso necessário.',
         'Ajustem mira, meteoros variam de densidade.',
-        'Dados chegando: priorizar grandes, depois fragmentos.'
+        'Dados chegando: priorizar grandes, depois fragmentos.',
+        'Simulando impacto: recomendação, mira à esquerda.',
+        'Se alinharmos disparos, a nuvem evapora rápido.',
+        'Gráfico de risco atualizado, atuem em pares.'
       ],
       paralyzed: [
         'Sistemas presos. Não consigo vetorar.',
@@ -222,7 +276,10 @@ export class RadioChatterService {
         'Não quero virar sucata, alguém me puxa.',
         'Propulsão offline. Ajuda, por favor.',
         'Sem mobilidade, mas ainda de olho no radar.',
-        'Preciso de reset, alguém pode tocar meu casco?'
+        'Preciso de reset, alguém pode tocar meu casco?',
+        'Kernel congelado, preciso de reboot manual.',
+        'Controle de atitude zero, assistam meus dados.',
+        'Estou presa, porém gravando tudo para análise.'
       ],
       rescue: [
         'Controle restaurado. Obrigada, equipe.',
@@ -236,7 +293,18 @@ export class RadioChatterService {
         'Motores verdes? Não, azuis de novo.',
         'Chassi intacto, confiança restaurada.',
         'Reset completo, bora pontuar.',
-        'Ajuda recebida, vamos encerrar essa missão.'
+        'Ajuda recebida, vamos encerrar essa missão.',
+        'Reparo registrado, vou otimizar nossa rota.',
+        'Parada encerrada, voltando aos cálculos.',
+        'Vou pagar esse favor com eficiência extra.'
+      ],
+      launch: [
+        'Lançamento detectado, ajustando trajetória.',
+        'Catapulta manual aplicada, vetores corrigidos.',
+        'Impulso inicial forte, recalculando velocidade.',
+        'Estilingue acionado, modo balístico temporário.',
+        'Mouse forneceu delta-v adicional. Obrigada.',
+        'Dados coletados: lançamento eficiente.'
       ],
     },
   };
