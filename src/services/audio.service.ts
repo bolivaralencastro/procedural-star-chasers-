@@ -20,7 +20,7 @@ const SOUND_ASSETS: SoundAsset[] = [
   { name: 'launch', path: 'whoosh.wav', type: 'oneshot', initialVolume: 0.5 },
   { name: 'capture', path: 'star-collect.wav', type: 'oneshot', initialVolume: 0.5 },
   { name: 'celebrate', path: 'celebrate.wav', type: 'oneshot', initialVolume: 0.5 },
-  { name: 'blink', path: 'blink.wav', type: 'oneshot', initialVolume: 0.5 },
+  { name: 'blink', path: 'blink.mp3', type: 'oneshot', initialVolume: 0.5 },
   { name: 'rescue', path: 'rescue.wav', type: 'oneshot', initialVolume: 0.5 },
   { name: 'paralyzed', path: 'paralyzed.wav', type: 'oneshot', initialVolume: 0.3 },
   { name: 'reload', path: 'reload.wav', type: 'oneshot', initialVolume: 0.4 },
@@ -28,7 +28,7 @@ const SOUND_ASSETS: SoundAsset[] = [
   { name: 'wormhole_open', path: 'wormhole-open.wav', type: 'oneshot', initialVolume: 0.7 },
   { name: 'wormhole_close', path: 'wormhole-close.wav', type: 'oneshot', initialVolume: 0.7 },
   // Pools
-  { name: 'explosion', path: 'explosion.wav', type: 'pool', poolSize: 5, initialVolume: 0.4 },
+  { name: 'explosion', path: 'explosion.mp3', type: 'pool', poolSize: 5, initialVolume: 0.4 },
   { name: 'fire', path: 'laser_shoot.wav', type: 'pool', poolSize: 5, initialVolume: 0.3 },
   // Loops - Background music tracks
   { name: 'normal_mode', path: 'deep_space.mp3', type: 'loop', initialVolume: 0.3 },
@@ -37,7 +37,7 @@ const SOUND_ASSETS: SoundAsset[] = [
   { name: 'victory_theme', path: 'victory_theme.mp3', type: 'loop', initialVolume: 0.3 },
   // Other sound effects that might become loops
   { name: 'engine', path: 'engine_hum.wav', type: 'loop', initialVolume: 0 },
-  { name: 'orbit', path: 'orbit_hum.wav', type: 'loop', initialVolume: 0 },
+  { name: 'orbit', path: 'orbit_hum.mp3', type: 'loop', initialVolume: 0 },
 ];
 
 @Injectable({

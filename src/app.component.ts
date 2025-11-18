@@ -21,7 +21,7 @@ export class AppComponent implements OnDestroy {
   isWakeLockEnabled = signal(false);
   
   private platformId = inject(PLATFORM_ID);
-  private audioService = inject(AudioService);
+  audioService = inject(AudioService);
   private screenWakeLockService = inject(ScreenWakeLockService);
   
   private clockIntervalId?: number;

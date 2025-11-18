@@ -228,6 +228,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private longPressTimer: any = null;
   private touchStartPosition: Vector2D | null = null;
   private readonly LONG_PRESS_DURATION = 500; // 500ms
+  private readonly CONTEXT_MENU_WIDTH = 208; // matches w-52 (4px * 52)
+  private readonly CONTEXT_MENU_HEIGHT = 260;
   
   // Scaling properties
   private renderScale = 1.0;
@@ -273,6 +275,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
+    if (event.button === 2) {
+      event.preventDefault();
+      this.showContextMenu(event.clientX, event.clientY);
+      return;
+    }
+
     if (this.contextMenu.visible) {
       this.contextMenu.visible = false;
       this.cdr.detectChanges();
@@ -335,7 +343,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.touchStartPosition = new Vector2D(this.mouse.pos.x, this.mouse.pos.y);
       this.longPressTimer = setTimeout(() => {
         event.preventDefault(); // Prevent default context menu on some devices
-        this.showContextMenu(touchX, touchY); // Use UN-SCALED coordinates for HTML menu
+        this.showContextMenu(touch.clientX, touch.clientY);
         this.longPressTimer = null;
       }, this.LONG_PRESS_DURATION);
     }
@@ -399,10 +407,23 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private showContextMenu(x: number, y: number) {
+  private showContextMenu(clientX: number, clientY: number) {
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    const relativeY = clientY - rect.top;
+
+    const clampedX = Math.min(
+      Math.max(0, relativeX),
+      rect.width - this.CONTEXT_MENU_WIDTH
+    );
+    const clampedY = Math.min(
+      Math.max(0, relativeY),
+      rect.height - this.CONTEXT_MENU_HEIGHT
+    );
+
     this.contextMenu.visible = true;
-    this.contextMenu.x = x;
-    this.contextMenu.y = y;
+    this.contextMenu.x = clampedX;
+    this.contextMenu.y = clampedY;
     this.cdr.detectChanges();
   }
 
