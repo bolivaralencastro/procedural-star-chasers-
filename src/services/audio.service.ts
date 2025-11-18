@@ -44,16 +44,18 @@ const SOUND_ASSETS: SoundAsset[] = [
   providedIn: 'root'
 })
 export class AudioService {
-  isMuted = signal(true);
-  
+  isMuted = signal(false);
+
   private audioContextUnlocked = false;
   private sounds = new Map<string, HTMLAudioElement>();
   private soundPools = new Map<string, { pool: HTMLAudioElement[], index: number }>();
   private currentBackgroundTrack: LoopSoundName | null = null;
   private firstInteractionHandled = false; // Track if first user interaction happened
+  private interactionListenersRegistered = false;
 
   constructor() {
     this.loadSounds();
+    this.registerInteractionUnlock();
   }
 
   private loadSounds() {
@@ -77,29 +79,22 @@ export class AudioService {
       }
     });
   }
-  
-  private async unlockAudioContext() {
-    if (this.audioContextUnlocked) return;
-    // A silent sound is played on the first user interaction to unlock the AudioContext.
-    // Use the normal_mode track which will be the default background music
-    const backgroundMusic = this.sounds.get('normal_mode');
-    if (backgroundMusic) {
-      try {
-        const originalVolume = backgroundMusic.volume;
-        backgroundMusic.volume = 0; // Temporarily mute for the unlock
-        await backgroundMusic.play();
-        backgroundMusic.pause();
-        backgroundMusic.currentTime = 0;
-        backgroundMusic.volume = originalVolume; // Restore original volume
-        this.audioContextUnlocked = true;
-        // Now we can play the background music if needed
-        this.attemptToPlayCurrentBackgroundTrack();
-      } catch (e) {
-        console.error("Audio Context could not be unlocked.", e);
-      }
+
+  private registerInteractionUnlock() {
+    if (this.interactionListenersRegistered || typeof window === 'undefined') {
+      return;
     }
+
+    const unlockHandler = () => this.handleFirstInteraction();
+    const unlockEvents: Array<keyof DocumentEventMap> = ['pointerdown', 'touchstart', 'keydown'];
+
+    unlockEvents.forEach(eventName => {
+      window.addEventListener(eventName, unlockHandler, { once: true });
+    });
+
+    this.interactionListenersRegistered = true;
   }
-  
+
   private attemptToPlayCurrentBackgroundTrack() {
     if (!this.audioContextUnlocked || this.isMuted() || !this.currentBackgroundTrack) return;
     
@@ -118,14 +113,10 @@ export class AudioService {
   // Method to handle first user interaction to unlock audio
   public handleFirstInteraction() {
     if (this.firstInteractionHandled) return;
-    
+
     this.firstInteractionHandled = true;
-    
-    // Try to unlock audio context if not already unlocked
-    if (!this.audioContextUnlocked) {
-      this.unlockAudioContext();
-    }
-    
+    this.audioContextUnlocked = true;
+
     // If we have a background track that should be playing, try to play it now
     if (this.currentBackgroundTrack && !this.isMuted()) {
       this.attemptToPlayCurrentBackgroundTrack();
@@ -134,7 +125,7 @@ export class AudioService {
 
   async toggleMute() {
     if (!this.audioContextUnlocked) {
-      await this.unlockAudioContext();
+      this.handleFirstInteraction();
     }
       
     const newMutedState = !this.isMuted();
@@ -174,7 +165,7 @@ export class AudioService {
   }
 
   playSound(name: SoundName) {
-    if (this.isMuted() || !this.audioContextUnlocked) return;
+    if (this.isMuted()) return;
     const sound = this.sounds.get(name);
     if (sound) {
       sound.currentTime = 0;
@@ -183,7 +174,7 @@ export class AudioService {
   }
 
   playPooledSound(name: PooledSoundName) {
-    if (this.isMuted() || !this.audioContextUnlocked) return;
+    if (this.isMuted()) return;
     const poolData = this.soundPools.get(name);
     if (poolData) {
       const sound = poolData.pool[poolData.index];
