@@ -11,6 +11,7 @@ export interface Score {
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   templateUrl: './app.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
