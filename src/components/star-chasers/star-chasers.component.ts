@@ -16,6 +16,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { AudioService } from '../../services/audio.service';
 import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
+import { RadioChatterService, RadioContext } from '../../services/radio-chatter.service';
+import { PERSONALITIES, ShipColor, ShipPersonality } from '../../models/ship-personas';
 
 // Helper Vector2D class
 class Vector2D {
@@ -31,9 +33,6 @@ class Vector2D {
 }
 
 type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed';
-type ShipColor = 'Red' | 'Green' | 'Blue';
-type ShipPersonality = 'explorer' | 'aggressive' | 'timid' | 'loner' | 'patroller';
-const PERSONALITIES: ShipPersonality[] = ['explorer', 'aggressive', 'timid', 'loner', 'patroller'];
 
 interface Ship {
   id: number;
@@ -138,6 +137,13 @@ interface ScoreTooltip {
   maxLife: number;
 }
 
+interface RadioMessage {
+  id: number;
+  text: string;
+  color: string;
+  expiresAt: number;
+}
+
 interface Nebula {
   position: Vector2D;
   radius: number;
@@ -224,7 +230,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   public audioService = inject(AudioService);
   public wakeLockService = inject(ScreenWakeLockService);
+  private radioService = inject(RadioChatterService);
   private firstInteractionHandled = false; // Track if first interaction happened
+
+  public radioMessages = signal<RadioMessage[]>([]);
+  private nextRadioMessageId = 1;
+  private globalChatterCooldownUntil = 0;
+  private proximityCooldowns = new Map<string, number>();
 
   // Long-press properties for mobile
   private longPressTimer: any = null;
@@ -599,6 +611,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.updateExplosionParticles();
     this.updateScoreTooltips();
     this.updateNebulas();
+    this.updateRadioMessages();
     this.ships.forEach(ship => this.updateShip(ship));
     this.updateShipCollisions();
   }
@@ -618,6 +631,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.audioService.updateBackgroundMusic(isHunting, isCoop, anyShipCelebrating);
   }
 
+  private updateRadioMessages() {
+    const now = Date.now();
+    const filtered = this.radioMessages().filter(message => message.expiresAt > now);
+    if (filtered.length !== this.radioMessages().length) {
+      this.radioMessages.set(filtered);
+    }
+  }
+
   private updateShipCollisions() {
     for (let i = 0; i < this.ships.length; i++) {
         for (let j = i + 1; j < this.ships.length; j++) {
@@ -634,6 +655,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             const radiusB = shipB.radius * (1 + shipB.z * 0.4);
             const combinedRadius = radiusA + radiusB;
             const dist = Vector2D.distance(shipA.position, shipB.position);
+
+            this.maybeTriggerProximityChatter(shipA, shipB, dist, combinedRadius);
 
             if (dist < combinedRadius) {
                 // Collision detected
@@ -666,6 +689,54 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             }
         }
     }
+  }
+
+  private maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
+    const proximityRadius = combinedRadius + 80;
+    if (distance > proximityRadius) return;
+
+    const pairKey = shipA.id < shipB.id ? `${shipA.id}-${shipB.id}` : `${shipB.id}-${shipA.id}`;
+    const now = Date.now();
+    const availableAt = this.proximityCooldowns.get(pairKey) ?? 0;
+    if (now < availableAt) return;
+
+    const speaker = Math.random() > 0.5 ? shipA : shipB;
+    const emitted = this.enqueueRadioMessage(speaker, 'proximity');
+    if (emitted) {
+      this.proximityCooldowns.set(pairKey, now + 8000 + Math.random() * 7000);
+    }
+  }
+
+  private enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
+    const now = Date.now();
+    if (now < this.globalChatterCooldownUntil) {
+      return false;
+    }
+
+    const line = this.radioService.takeLine(ship.color, context);
+    if (!line) {
+      return false;
+    }
+
+    const expiresAt = now + this.radioService.getMessageDuration();
+    const message: RadioMessage = {
+      id: this.nextRadioMessageId++,
+      text: line,
+      color: ship.hexColor,
+      expiresAt,
+    };
+
+    const existing = this.radioMessages().filter(m => m.expiresAt > now);
+    this.radioMessages.set([...existing, message]);
+    this.globalChatterCooldownUntil = now + this.radioService.getGlobalCooldown();
+    return true;
+  }
+
+  private getRandomActiveShip(): Ship | null {
+    if (this.ships.length === 0) return null;
+    const candidates = this.ships.filter(s => s.state !== 'paralyzed');
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
   private createWormhole() {
@@ -777,6 +848,10 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
           this.spawnAsteroid('large');
       }
       this.ships.forEach(s => s.state = 'idle'); // Reset state for cooperative mode
+      const announcer = this.getRandomActiveShip();
+      if (announcer) {
+        this.enqueueRadioMessage(announcer, 'meteor_event');
+      }
   }
 
   private endAsteroidEvent() {
@@ -1039,6 +1114,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
               paralyzedAlly.paralyzeTimer = 0;
               this.createStarExplosion(ship.position, 20);
               this.audioService.playSound('rescue');
+              this.enqueueRadioMessage(paralyzedAlly, 'rescue');
             }
           }
         } else if (this.asteroids.length > 0) {
@@ -1267,7 +1343,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     
     this.createStarExplosion(this.targetStar.position.clone());
     this.audioService.playSound('capture');
-    
+
     if (winner.color === 'Green') {
       this.createNebula(this.targetStar.position.clone());
     }
@@ -1276,6 +1352,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.starParticles = [];
     winner.state = 'celebrating';
     this.audioService.playSound('celebrate');
+    this.enqueueRadioMessage(winner, 'star_capture');
     // FIX: The celebration duration is a property of the ship, not the component.
     winner.celebrationTimer = winner.celebrationDuration;
     this.ships.forEach(c => {
@@ -1468,6 +1545,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
                 this.createStarExplosion(ship.position, 30);
                 this.audioService.playPooledSound('explosion');
                 this.audioService.playSound('paralyzed');
+                this.enqueueRadioMessage(ship, 'paralyzed');
                 this.asteroids.splice(i, 1); // Destroy asteroid on impact
             }
         });
