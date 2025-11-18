@@ -6,6 +6,7 @@
 
     @if (contextMenu.visible) {
         <div
+            #contextMenu
             class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden w-52 context-menu pointer-events-auto"
             [style.left.px]="contextMenu.x"
             [style.top.px]="contextMenu.y">

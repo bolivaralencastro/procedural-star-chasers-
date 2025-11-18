@@ -89,10 +89,6 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  toggleAudio(): void {
-    this.audioService.toggleMute();
-  }
-
   toggleWakeLock(): void {
     this.screenWakeLockService.toggleWakeLock();
   }

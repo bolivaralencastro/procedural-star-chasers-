@@ -172,6 +172,7 @@ interface WormholePair {
 })
 export class StarChasersComponent implements AfterViewInit, OnDestroy {
   @ViewChild('gameCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('contextMenu') contextMenuRef?: ElementRef<HTMLDivElement>;
   @Output() toggleFullscreenRequest = new EventEmitter<void>();
   @Input() isFullscreen = false;
 
@@ -283,6 +284,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
 
     if (this.contextMenu.visible) {
+      const menuElement = this.contextMenuRef?.nativeElement;
+      const eventTarget = event.target as Node | null;
+
+      if (menuElement && eventTarget && menuElement.contains(eventTarget)) {
+        return;
+      }
+
       this.contextMenu.visible = false;
       this.cdr.detectChanges();
     }
