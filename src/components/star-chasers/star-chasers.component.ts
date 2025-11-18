@@ -1194,7 +1194,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         if (ship.paralyzeTimer <= 0) {
           ship.state = 'idle';
         }
-      } else if (ship.state !== 'orbiting' && ship.state !== 'launched' && ship.state !== 'controlled') {
+      } else if (ship.state !== 'orbiting' && ship.state !== 'launched') {
         let target: Vector2D | null = null;
         let isRescuing = false;
         if (ship.reloadTimer <= 0 && ship.ammo <= 0) {
