@@ -162,6 +162,7 @@ interface WormholePair {
 
 @Component({
   selector: 'app-star-chasers',
+  standalone: true,
   templateUrl: './star-chasers.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],

@@ -57,7 +57,7 @@ export class AudioService {
   }
 
   private loadSounds() {
-    const soundPathPrefix = '/src/assets/sounds/'; // Organized path for future sound files
+    const soundPathPrefix = 'assets/sounds/'; // Organized path for future sound files
     SOUND_ASSETS.forEach(asset => {
       if (asset.type === 'oneshot' || asset.type === 'loop') {
         const audio = new Audio(soundPathPrefix + asset.path);
