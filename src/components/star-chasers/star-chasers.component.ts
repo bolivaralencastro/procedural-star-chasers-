@@ -36,6 +36,7 @@ import {
 } from '../../models/game-entities';
 import { GAME_CONSTANTS } from './game-constants';
 import { TextUtils } from './text-utils';
+import { AsteroidManager } from './asteroid-manager';
 
 @Component({
   selector: 'app-star-chasers',
