@@ -40,6 +40,7 @@ import { AsteroidManager } from './asteroid-manager';
 import { ProjectileManager } from './projectile-manager';
 import { ParticleEffectsManager } from './particle-effects-manager';
 import { WormholeManager } from './wormhole-manager';
+import { ShipBehaviorManager } from './ship-behavior-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -938,95 +939,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private switchPersonality(ship: Ship) {
-    const currentPersonality = ship.personality;
-    let newPersonality = currentPersonality;
-    while (newPersonality === currentPersonality) {
-      newPersonality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
-    }
-    ship.personality = newPersonality;
-    ship.personalityTimer = 15000 + Math.random() * 15000; // 15-30 seconds for next change
-
-    if (newPersonality === 'patroller') {
-      ship.patrolTarget = new Vector2D(Math.random() * this.worldWidth, Math.random() * this.worldHeight);
-    } else {
-      ship.patrolTarget = undefined;
-    }
+    ShipBehaviorManager.switchPersonality(ship, this.worldWidth, this.worldHeight);
   }
 
   private applyPersonalityBehaviors(ship: Ship) {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-
-    switch (ship.personality) {
-      case 'aggressive': {
-        let nearestShip: Ship | null = null;
-        let minDist = Infinity;
-        this.ships.forEach(other => {
-          if (ship.id === other.id) return;
-          const d = Vector2D.distance(ship.position, other.position);
-          if (d < minDist) {
-            minDist = d;
-            nearestShip = other;
-          }
-        });
-        if (nearestShip) {
-          const direction = nearestShip.position.clone().subtract(ship.position).normalize();
-          ship.acceleration.add(direction.multiply(0.04));
-        }
-        break;
-      }
-      case 'timid': {
-        const fleeRadius = 250;
-        this.ships.forEach(other => {
-          if (ship.id === other.id) return;
-          const dist = Vector2D.distance(ship.position, other.position);
-          if (dist > 0 && dist < fleeRadius) {
-            const repulsion = ship.position.clone().subtract(other.position);
-            const strength = (1 - dist / fleeRadius) * 0.1;
-            repulsion.normalize().multiply(strength);
-            ship.acceleration.add(repulsion);
-          }
-        });
-        break;
-      }
-      case 'loner': {
-        const quadrants = [
-          { x: 0, y: 0, count: 0 }, { x: w / 2, y: 0, count: 0 },
-          { x: 0, y: h / 2, count: 0 }, { x: w / 2, y: h / 2, count: 0 }
-        ];
-        this.ships.forEach(c => {
-          if (c.position.x < w / 2 && c.position.y < h / 2) quadrants[0].count++;
-          else if (c.position.x >= w / 2 && c.position.y < h / 2) quadrants[1].count++;
-          else if (c.position.x < w / 2 && c.position.y >= h / 2) quadrants[2].count++;
-          else quadrants[3].count++;
-        });
-        quadrants.sort((a, b) => a.count - b.count);
-        const targetQuadrant = quadrants[0];
-        const targetPos = new Vector2D(targetQuadrant.x + w / 4, targetQuadrant.y + h / 4);
-        const direction = targetPos.subtract(ship.position).normalize();
-        ship.acceleration.add(direction.multiply(0.03));
-        break;
-      }
-      case 'patroller': {
-        if (!ship.patrolTarget || Vector2D.distance(ship.position, ship.patrolTarget) < 100) {
-          ship.patrolTarget = new Vector2D(Math.random() * w, Math.random() * h);
-        }
-        const direction = ship.patrolTarget.clone().subtract(ship.position).normalize();
-        ship.acceleration.add(direction.multiply(0.05));
-        break;
-      }
-      default: { // explorer
-        const randomAngle = (Math.random() - 0.5) * 0.1;
-        const newVelX = Math.cos(randomAngle) * ship.velocity.x - Math.sin(randomAngle) * ship.velocity.y;
-        const newVelY = Math.sin(randomAngle) * ship.velocity.x + Math.cos(randomAngle) * ship.velocity.y;
-        ship.velocity.x = newVelX;
-        ship.velocity.y = newVelY;
-        let idleSpeed = 0.8 + ship.speedBonus * 0.5;
-        if (ship.color === 'Blue') idleSpeed *= 1.25;
-        ship.velocity.normalize().multiply(idleSpeed);
-        break;
-      }
-    }
+    ShipBehaviorManager.applyPersonalityBehaviors(ship, this.ships, this.worldWidth, this.worldHeight);
   }
   
   private updateShip(ship: Ship) {
@@ -1344,31 +1261,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private performCelebration(ship: Ship) {
-    const progress = 1 - (ship.celebrationTimer / ship.celebrationDuration);
-    const easeMultiplier = Math.sin(progress * Math.PI);
-    switch (ship.color) {
-        case 'Red': // Zig-zag
-            ship.velocity.multiply(0.9);
-            const perp = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize();
-            if (Math.random() < 0.1) ship.zigZagDir *= -1;
-            ship.acceleration.add(perp.multiply(0.5 * ship.zigZagDir * easeMultiplier));
-            break;
-        case 'Green': // Spiral
-            const angle = (Date.now() / 200);
-            const radius = 2 + 30 * easeMultiplier;
-            ship.position.x += Math.cos(angle) * radius * 0.1;
-            ship.position.y += Math.sin(angle) * radius * 0.1;
-            ship.velocity.multiply(0.9);
-            break;
-        case 'Blue': // Loop
-            const turn = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize().multiply(0.3 * easeMultiplier);
-            ship.acceleration.add(turn);
-            break;
-    }
-    ship.velocity.add(ship.acceleration);
-    ship.velocity.normalize().multiply(3);
-    ship.position.add(ship.velocity);
-    ship.acceleration.multiply(0);
+    ShipBehaviorManager.performCelebration(ship);
   }
 
   private captureStar(winner: Ship) {
@@ -1481,26 +1374,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private performBlink(ship: Ship) {
-    const BLINK_DISTANCE = 150;
-    const startPos = ship.position.clone();
-    let direction: Vector2D;
-    if (ship.state === 'hunting' && this.targetStar.exists) {
-      direction = this.targetStar.position.clone().subtract(ship.position).normalize();
-    } else {
-      direction = ship.velocity.magnitude() > 0 ? ship.velocity.clone().normalize() : new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
-    }
-    const endPos = startPos.clone().add(direction.multiply(BLINK_DISTANCE));
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    endPos.x = (endPos.x + w) % w;
-    endPos.y = (endPos.y + h) % h;
-
-    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, startPos, ship.hexColor);
-    ship.position = endPos;
-    ship.tail = [];
-    ship.isBlinking = 15;
-    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, endPos, ship.hexColor);
-    ship.blinkTimer = ship.blinkCooldown + (Math.random() - 0.5) * 4000;
+    const positions = ShipBehaviorManager.performBlink(
+      ship,
+      this.targetStar.exists,
+      this.targetStar.position,
+      this.worldWidth,
+      this.worldHeight
+    );
+    
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, positions[0], ship.hexColor);
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, positions[1], ship.hexColor);
   }
 
   private createBlinkParticles(position: Vector2D, color: string) {
