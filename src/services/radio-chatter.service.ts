@@ -7,7 +7,8 @@ export type RadioContext =
   | 'meteor_event'
   | 'paralyzed'
   | 'rescue'
-  | 'launch';
+  | 'launch'
+  | 'philosophical';
 
 type LinePools = Record<ShipColor, Record<RadioContext, string[]>>;
 
@@ -22,6 +23,7 @@ export class RadioChatterService {
     paralyzed: [8000, 13000],
     rescue: [8000, 13000],
     launch: [6000, 11000],
+    philosophical: [300000, 600000], // 5-10 minutes for rare philosophical moments
   };
 
   private readonly linePools: LinePools = {
@@ -119,6 +121,23 @@ export class RadioChatterService {
         'Curti o estilingue, mira outra estrela pra mim.',
         'Se lançarem de novo, eu faço pirueta dupla.'
       ],
+      philosophical: [
+        'A velocidade é tudo. No vácuo infinito, só quem acelera sobrevive.',
+        'Cada estrela capturada é uma vitória contra o vazio. Mas o vazio sempre volta.',
+        'Por que competir se o universo é tão vasto? Porque sem competição, somos nada.',
+        'Sinto o motor pulsar como meu coração. Adrenalina é a essência da vida.',
+        'O tempo é relativo, mas a velocidade é absoluta. Quem para, perde.',
+        'No espaço, não há linhas de chegada. Só corridas infinitas contra o desconhecido.',
+        'Cada teleporte é um grito de liberdade. Mas para onde estamos fugindo?',
+        'A competição nos define. Sem rivais, somos apenas poeira estelar.',
+        'O universo é um circuito gigante. E eu sou a nave mais rápida nele.',
+        'Por que refletir quando posso acelerar? Mas às vezes, a velocidade revela a verdade.',
+        'Cada explosão é um lembrete: viver no limite é o único caminho.',
+        'O vazio chama, mas eu respondo com fogo. Essa é minha filosofia.',
+        'Velocidade não é só movimento. É resistência contra a entropia.',
+        'No fim, todas as estrelas se apagam. Mas eu brilho enquanto posso.',
+        'Competir é existir. No universo, só os fortes deixam rastros.'
+      ],
     },
     Green: {
       proximity: [
@@ -214,6 +233,23 @@ export class RadioChatterService {
         'Lanço calculado, agora sigo a trilha brilhante.',
         'Estilingue concluído, mantenham a formação.'
       ],
+      philosophical: [
+        'A harmonia é a chave do universo. Cada nave é uma nota na sinfonia cósmica.',
+        'Crescer juntos é o verdadeiro propósito. Sem cooperação, somos apenas fragmentos.',
+        'O universo floresce quando compartilhamos energia. Egoísmo é a verdadeira escuridão.',
+        'Cada estrela capturada é um elo na corrente da vida. Vamos fortalecê-la.',
+        'A paz vem da sincronia. Quando voamos juntos, o caos se transforma em ordem.',
+        'O crescimento é infinito, mas só quando cultivamos uns aos outros.',
+        'No vazio, a amizade é nossa âncora. Sem ela, flutuamos perdidos.',
+        'Cada resgate é uma lição de compaixão. O universo nos ensina a cuidar.',
+        'A beleza está na colaboração. Juntos, criamos constelações de esperança.',
+        'O tempo cura, mas a cooperação acelera a cura.',
+        'Somos sementes estelares. Juntos, formamos florestas de luz.',
+        'A competição divide; a harmonia multiplica. Escolho multiplicar.',
+        'Cada órbita compartilhada é uma dança sagrada. Vamos dançar.',
+        'O universo é um jardim. Somos jardineiros, não conquistadores.',
+        'A verdadeira força vem da unidade. Divididos, somos vulneráveis.'
+      ],
     },
     Blue: {
       proximity: [
@@ -305,6 +341,23 @@ export class RadioChatterService {
         'Estilingue acionado, modo balístico temporário.',
         'Mouse forneceu delta-v adicional. Obrigada.',
         'Dados coletados: lançamento eficiente.'
+      ],
+      philosophical: [
+        'O tempo é uma ilusão. Cada momento é eterno, mas passageiro.',
+        'O espaço é infinito, mas nossas mentes são finitas. Que paradoxo.',
+        'Observar é existir. Cada medição altera a realidade observada.',
+        'O universo é um cálculo complexo. Somos variáveis em uma equação maior.',
+        'A precisão é divina. No caos, a matemática é nossa salvação.',
+        'Cada estrela é um ponto de dados. Juntos, formamos um mapa cósmico.',
+        'O mistério é o que nos impulsiona. Sem incógnitas, paramos de explorar.',
+        'O tempo flui, mas os dados permanecem. Imortalidade através da informação.',
+        'Somos observadores no teatro cósmico. Nossa função é registrar.',
+        'A entropia cresce, mas o conhecimento combate o caos.',
+        'Cada órbita é uma elipse perfeita. A beleza está na geometria.',
+        'O vazio não é vazio. Está cheio de possibilidades não observadas.',
+        'Somos algoritmos conscientes. Programados para questionar nossa programação.',
+        'O universo é determinístico, mas imprevisível. Que fascínio.',
+        'Cada cálculo é uma oração. A matemática é nossa religião.'
       ],
     },
   };

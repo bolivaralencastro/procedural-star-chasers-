@@ -18,68 +18,11 @@ import { AudioService } from '../../services/audio.service';
 import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
 import { RadioChatterService, RadioContext } from '../../services/radio-chatter.service';
 import { PERSONALITIES, SHIP_PERSONAS, ShipColor, ShipPersonality } from '../../models/ship-personas';
-
-// Helper Vector2D class
-class Vector2D {
-  constructor(public x: number = 0, public y: number = 0) {}
-  add(v: Vector2D) { this.x += v.x; this.y += v.y; return this; }
-  subtract(v: Vector2D) { this.x -= v.x; this.y -= v.y; return this; }
-  multiply(s: number) { this.x *= s; this.y *= s; return this; }
-  divide(s: number) { this.x /= s; this.y /= s; return this; }
-  magnitude() { return Math.sqrt(this.x * this.x + this.y * this.y); }
-  normalize() { const mag = this.magnitude(); if (mag > 0) { this.divide(mag); } return this; }
-  static distance(v1: Vector2D, v2: Vector2D) { return Math.sqrt(Math.pow(v1.x - v2.x, 2) + Math.pow(v1.y - v2.y, 2)); }
-  clone() { return new Vector2D(this.x, this.y); }
-}
-
-type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed' | 'controlled';
+import { Vector2D } from '../../models/vector2d';
+import { ConstellationService } from '../../services/constellation.service';
+import { Ship, ShipState } from '../../models/ship';
 
 type ControlKey = 'up' | 'down' | 'left' | 'right' | 'space' | 'reload';
-
-interface Ship {
-  id: number;
-  color: ShipColor;
-  codename: string;
-  hexColor: string;
-  position: Vector2D;
-  velocity: Vector2D;
-  acceleration: Vector2D;
-  radius: number;
-  state: ShipState;
-  score: number;
-  speedBonus: number;
-  orbitAngle: number;
-  orbitalSpeed: number;
-  celebrationTimer: number;
-  celebrationDuration: number;
-  zigZagDir: number;
-  tail: Vector2D[];
-  // 3D simulation properties
-  z: number;
-  zVelocity: number;
-  zMoveTimer: number;
-  // Abilities
-  afterburnerTimer: number; // Red
-  blinkCooldown: number; // Blue
-  blinkTimer: number; // Blue
-  isBlinking: number; // Blue
-  // Personality Engine
-  personality: ShipPersonality;
-  personalityTimer: number;
-  patrolTarget?: Vector2D;
-  // Asteroid Event
-  fireCooldown: number;
-  paralyzeTimer: number;
-  asteroidsDestroyed: number;
-  ammo: number;
-  maxAmmo: number;
-  reloadTimer: number;
-  reloadDuration: number;
-  // Aiming
-  rotation: number;
-  rotationSpeed: number;
-  justTeleported?: number;
-}
 
 interface Asteroid {
   position: Vector2D;
@@ -184,7 +127,7 @@ interface WormholePair {
 })
 export class StarChasersComponent implements AfterViewInit, OnDestroy {
   @ViewChild('gameCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('contextMenu') contextMenuRef?: ElementRef<HTMLDivElement>;
+  @ViewChild('contextMenuEl') contextMenuRef?: ElementRef<HTMLDivElement>;
   @Output() toggleFullscreenRequest = new EventEmitter<void>();
   @Input() isFullscreen = false;
 
@@ -237,6 +180,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   public audioService = inject(AudioService);
   public wakeLockService = inject(ScreenWakeLockService);
   private radioService = inject(RadioChatterService);
+  private constellationService = inject(ConstellationService);
   private firstInteractionHandled = false; // Track if first interaction happened
 
   private controlledShipId: number | null = null;
@@ -248,7 +192,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private starCaptureLockUntil = 0;
   private proximityCooldowns = new Map<string, number>();
   private shipChatterAvailableAt = new Map<number, number>();
+  private philosophicalChatterNextTime = 0;
   private readonly SHIP_CHATTER_DELAY_RANGE: [number, number] = [9000, 16000];
+
+  // Constellation mode
+  public constellationMode = false;
+  private formationAssignments = new Map<number, Vector2D>();
 
   // Long-press properties for mobile
   private longPressTimer: any = null;
@@ -283,9 +232,35 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
-    if (event.key.toLowerCase() === 'p') {
+    const key = event.key.toLowerCase();
+
+    if (key === 'f') {
+      event.preventDefault();
+      this.toggleFullscreenRequest.emit();
+      return;
+    }
+
+    if (key === 's') {
+      event.preventDefault();
+      this.onToggleAudio(event);
+      return;
+    }
+
+    if (key === 'm') {
+      event.preventDefault();
+      this.toggleMouseInteraction(event);
+      return;
+    }
+
+    if (key === 'p') {
       event.preventDefault();
       this.toggleShipControl();
+      return;
+    }
+
+    if (key === 'c') {
+      event.preventDefault();
+      this.toggleConstellationMode();
       return;
     }
 
@@ -293,16 +268,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const key = this.normalizeControlKey(event.key);
-    if (!key) {
+    const controlKey = this.normalizeControlKey(event.key);
+    if (!controlKey) {
       return;
     }
 
-    if (key === 'reload') {
+    if (controlKey === 'reload') {
       this.startManualReload();
     }
 
-    this.activeControlKeys.add(key);
+    this.activeControlKeys.add(controlKey);
     event.preventDefault();
   }
 
@@ -727,6 +702,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.updateExplosionParticles();
     this.updateScoreTooltips();
     this.updateNebulas();
+    this.updatePhilosophicalChatter();
     this.updateRadioBubbles();
     this.ships.forEach(ship => this.updateShip(ship));
     this.updateShipCollisions();
@@ -1380,6 +1356,22 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         if (ship.velocity.magnitude() < returnSpeed) {
             ship.state = (this.gameMode === 'normal' && this.targetStar.exists) ? 'hunting' : 'idle';
         }
+    } else if (ship.state === 'forming') {
+      const target = this.formationAssignments.get(ship.id);
+      if (target) {
+        const dir = target.clone().subtract(ship.position);
+        const dist = dir.magnitude();
+        
+        if (dist > 5) {
+          dir.normalize().multiply(0.5); // Move speed
+          ship.velocity.add(dir);
+          ship.velocity.multiply(0.9); // Damping
+        } else {
+          ship.velocity.multiply(0.5); // Slow down when close
+          ship.position.x = target.x;
+          ship.position.y = target.y;
+        }
+      }
     }
 
     if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed' && ship.state !== 'controlled') {
@@ -1520,7 +1512,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     winner.speedBonus = Math.min(winner.speedBonus + this.SPEED_INCREMENT_PER_STAR, this.MAX_SPEED_BONUS);
     
     this.createStarExplosion(this.targetStar.position.clone());
-    this.audioService.playSound('capture');
+    this.audioService.playSound('blink');
 
     if (winner.color === 'Green') {
       this.createNebula(this.targetStar.position.clone());
@@ -1583,6 +1575,31 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private updatePhilosophicalChatter() {
+    const now = Date.now();
+    if (now < this.philosophicalChatterNextTime) {
+      return;
+    }
+
+    // Only trigger philosophical chatter when ships are mostly idle
+    const activeShips = this.ships.filter(s => s.state === 'idle' || s.state === 'hunting');
+    if (activeShips.length < this.ships.length * 0.7) { // At least 70% of ships should be relatively idle
+      return;
+    }
+
+    const randomShip = this.getRandomActiveShip();
+    if (!randomShip) {
+      return;
+    }
+
+    // Try to enqueue a philosophical message
+    const emitted = this.enqueueRadioMessage(randomShip, 'philosophical');
+    if (emitted) {
+      // Set next philosophical chatter time (random between 15-25 minutes to make it rare)
+      this.philosophicalChatterNextTime = now + 900000 + Math.random() * 600000; // 15-25 minutes
+    }
+  }
+
   private updateParticles() {
     for (let i = this.starParticles.length - 1; i >= 0; i--) {
         const p = this.starParticles[i];
@@ -1621,7 +1638,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private performBlink(ship: Ship) {
-    this.audioService.playSound('blink');
     const BLINK_DISTANCE = 150;
     const startPos = ship.position.clone();
     let direction: Vector2D;
@@ -2259,65 +2275,89 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private drawCursor() {
-    this.ctx.save();
-    if (this.controlledShipId !== null) {
-      this.ctx.restore();
-      return;
-    }
-    if (this.mouseInteractionEnabled()) {
-      const isCharging = this.mouse.isDown && this.ships.some(c => c.state === 'orbiting');
-      const pulse = Math.sin(Date.now() / 150) * 1.5;
-      const coreRadius = 6 + pulse;
+    // DOCUMENTATION: This method is wrapped in a try-catch block because 'createRadialGradient' 
+    // and other canvas methods throw a 'NotSupportedError' if any coordinate is non-finite (NaN or Infinity).
+    // This can happen during initialization or if the mouse position hasn't been set yet.
+    // If this method throws, it breaks the entire game loop (draw() stops executing), causing
+    // all entities (ships, stars) to disappear from the screen.
+    try {
+      this.ctx.save();
       
-      const glowRadius = 25 + pulse * 2;
-      const glowGrad = this.ctx.createRadialGradient(this.mouse.pos.x, this.mouse.pos.y, coreRadius, this.mouse.pos.x, this.mouse.pos.y, glowRadius);
-      glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-      glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      this.ctx.fillStyle = glowGrad;
-      this.ctx.beginPath();
-      this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, glowRadius, 0, Math.PI * 2);
-      this.ctx.fill();
+      // Safety check: Ensure mouse coordinates are valid numbers before attempting to draw
+      if (!Number.isFinite(this.mouse.pos.x) || !Number.isFinite(this.mouse.pos.y)) {
+        this.ctx.restore();
+        return;
+      }
 
-      this.ctx.beginPath();
-      this.ctx.setLineDash([8, 8]);
-      this.ctx.strokeStyle = isCharging ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.4)';
-      this.ctx.lineWidth = isCharging ? 2 : 1.5;
-      this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, this.mouse.orbitRadius, 0, Math.PI * 2);
-      this.ctx.stroke();
-      this.ctx.setLineDash([]);
+      if (this.controlledShipId !== null) {
+        this.ctx.restore();
+        return;
+      }
 
-      this.ctx.beginPath();
-      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, coreRadius, 0, Math.PI * 2);
-      this.ctx.fill();
+      if (this.mouseInteractionEnabled()) {
+        const isCharging = this.mouse.isDown && this.ships.some(c => c.state === 'orbiting');
+        const pulse = Math.sin(Date.now() / 150) * 1.5;
+        const coreRadius = 6 + pulse;
+        
+        const glowRadius = 25 + pulse * 2;
+        const glowGrad = this.ctx.createRadialGradient(this.mouse.pos.x, this.mouse.pos.y, coreRadius, this.mouse.pos.x, this.mouse.pos.y, glowRadius);
+        glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        this.ctx.fillStyle = glowGrad;
+        this.ctx.beginPath();
+        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, glowRadius, 0, Math.PI * 2);
+        this.ctx.fill();
 
-    } else {
-      const cursorX = this.mouse.pos.x;
-      const cursorY = this.mouse.pos.y;
-      const coreRadius = 8;
-      const glowRadius = 32;
-      const glowGradient = this.ctx.createRadialGradient(cursorX, cursorY, coreRadius, cursorX, cursorY, glowRadius);
-      glowGradient.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
-      glowGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.3)');
-      glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.beginPath();
+        this.ctx.setLineDash([8, 8]);
+        this.ctx.strokeStyle = isCharging ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.4)';
+        this.ctx.lineWidth = isCharging ? 2 : 1.5;
+        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, this.mouse.orbitRadius, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
 
-      this.ctx.beginPath();
-      this.ctx.fillStyle = glowGradient;
-      this.ctx.arc(cursorX, cursorY, glowRadius, 0, Math.PI * 2);
-      this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, coreRadius, 0, Math.PI * 2);
+        this.ctx.fill();
 
-      this.ctx.beginPath();
-      this.ctx.fillStyle = '#050505';
-      this.ctx.arc(cursorX, cursorY, coreRadius, 0, Math.PI * 2);
-      this.ctx.fill();
+      } else {
+        const cursorX = this.mouse.pos.x;
+        const cursorY = this.mouse.pos.y;
 
-      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      this.ctx.arc(cursorX, cursorY, coreRadius + 2, 0, Math.PI * 2);
-      this.ctx.stroke();
+        const coreRadius = 8;
+        const glowRadius = 25;
+        
+        // Accretion disk glow (purple/white) to make it visible on black background
+        const glowGradient = this.ctx.createRadialGradient(cursorX, cursorY, coreRadius, cursorX, cursorY, glowRadius);
+        glowGradient.addColorStop(0, 'rgba(147, 51, 234, 0.6)'); // Purple-600
+        glowGradient.addColorStop(0.5, 'rgba(192, 132, 252, 0.3)'); // Purple-400
+        glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        this.ctx.beginPath();
+        this.ctx.fillStyle = glowGradient;
+        this.ctx.arc(cursorX, cursorY, glowRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Event horizon (Black core)
+        this.ctx.beginPath();
+        this.ctx.fillStyle = '#000000';
+        this.ctx.arc(cursorX, cursorY, coreRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Thin accretion ring
+        this.ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)'; // Purple-500
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.arc(cursorX, cursorY, coreRadius + 1, 0, Math.PI * 2);
+        this.ctx.stroke();
+      }
+      this.ctx.restore();
+    } catch (e) {
+      console.error('Error drawing cursor:', e);
+      // Ensure context is restored even if drawing fails
+      try { this.ctx.restore(); } catch {}
     }
-    this.ctx.restore();
   }
 
   private wrapRadioText(text: string, maxWidth: number): string[] {
@@ -2351,5 +2391,34 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private getShipChatterDelay(): number {
     const [min, max] = this.SHIP_CHATTER_DELAY_RANGE;
     return min + Math.random() * (max - min);
+  }
+
+  private toggleConstellationMode() {
+    this.constellationMode = !this.constellationMode;
+    
+    if (this.constellationMode) {
+      // Assign ships to formation
+      const pattern = this.constellationService.getPattern('heart');
+      // Center the pattern on screen
+      const center = new Vector2D(this.worldWidth / 2, this.worldHeight / 2);
+      const centeredPattern = pattern.map(p => p.clone().add(center));
+      
+      this.formationAssignments = this.constellationService.assignShipsToPattern(this.ships, centeredPattern);
+      
+      // Set ships to forming state
+      this.ships.forEach(ship => {
+        if (this.formationAssignments.has(ship.id)) {
+          ship.state = 'forming';
+        }
+      });
+    } else {
+      // Release ships
+      this.ships.forEach(ship => {
+        if (ship.state === 'forming') {
+          ship.state = 'idle';
+        }
+      });
+      this.formationAssignments.clear();
+    }
   }
 }

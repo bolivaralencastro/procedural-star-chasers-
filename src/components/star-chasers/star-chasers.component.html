@@ -1,35 +1,37 @@
 <div class="relative w-full h-full" (contextmenu)="onContextMenu($event)">
     <canvas #gameCanvas
         class="w-full h-full block cursor-none"
-        [class.pointer-events-none]="contextMenu.visible && !isMobile">
+        [class.pointer-events-none]="contextMenu.visible && !isMobile()">
     </canvas>
 
     @if (contextMenu.visible) {
-        <div
-            #contextMenu
+        <div 
+            #contextMenuEl
             class="absolute bg-gray-800/80 backdrop-blur-sm border border-gray-600 rounded-md shadow-xl text-white font-mono text-sm z-50 overflow-hidden w-52 context-menu pointer-events-auto"
             [style.left.px]="contextMenu.x"
             [style.top.px]="contextMenu.y">
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors"
                  (click)="toggleMouseInteraction($event)">
-                {{ mouseInteractionEnabled() ? 'Disable Mouse' : 'Enable Mouse' }}
+                {{ mouseInteractionEnabled() ? 'Disable Mouse' : 'Enable Mouse' }} (M)
             </div>
 
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
                  (click)="onToggleAudio($event)">
-                {{ audioService.isMuted() ? 'Unmute Audio' : 'Mute Audio' }}
+                {{ audioService.isMuted() ? 'Unmute Audio' : 'Mute Audio' }} (S)
             </div>
             
             <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
                  (click)="onToggleFullscreen($event)">
-                {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }}
+                {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }} (F)
             </div>
             
-            <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
-                 (click)="onToggleWakeLock($event)">
-                {{ wakeLockService.getIsEnabled()() ? 'Disable Wake Lock' : 'Enable Wake Lock' }}
-            </div>
+            @if (isMobile()) {
+                <div class="py-2 px-4 cursor-pointer hover:bg-gray-700/80 transition-colors border-t border-gray-600"
+                     (click)="onToggleWakeLock($event)">
+                    {{ wakeLockService.getIsEnabled()() ? 'Disable Wake Lock' : 'Enable Wake Lock' }}
+                </div>
+            }
 
             <div class="px-4 py-3 border-t border-gray-600">
                 <h4 class="text-xs text-gray-400 mb-2 uppercase tracking-wider">Ship Stats</h4>
@@ -52,7 +54,7 @@
     }
     
     <!-- Mobile Floating Menu -->
-    @if (isMobile) {
+    @if (isMobile()) {
         <div class="absolute top-4 right-4 z-40 mobile-menu">
             <button 
                 type="button"

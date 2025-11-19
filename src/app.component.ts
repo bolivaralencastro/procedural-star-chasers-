@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, effect } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
+import { ParticleClockComponent } from './components/particle-clock/particle-clock.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AudioService } from './services/audio.service';
 import { ScreenWakeLockService } from './services/screen-wake-lock.service';
@@ -15,11 +16,12 @@ export interface Score {
   templateUrl: './app.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StarChasersComponent, CommonModule],
+  imports: [StarChasersComponent, ParticleClockComponent, CommonModule],
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);
   isWakeLockEnabled = signal(false);
+  isMobile = signal(false);
   
   private platformId = inject(PLATFORM_ID);
   audioService = inject(AudioService);
@@ -28,8 +30,8 @@ export class AppComponent implements OnDestroy {
   private clockIntervalId?: number;
   currentTime = signal(new Date());
 
-  timeDigits = computed(() => this.formatTime(this.currentTime()).split(''));
-  dateDigits = computed(() => this.formatDate(this.currentTime()).split(''));
+  formattedTime = computed(() => this.formatTime(this.currentTime()));
+  formattedDate = computed(() => this.formatDate(this.currentTime()));
 
   constructor() {
     afterNextRender(() => {
@@ -46,8 +48,17 @@ export class AppComponent implements OnDestroy {
         effect(() => {
           this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
         });
+
+        this.checkMobile();
+        window.addEventListener('resize', () => this.checkMobile());
       }
     });
+  }
+
+  private checkMobile() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   (window.innerWidth < 800 && 'ontouchstart' in window);
+    this.isMobile.set(isMobile);
   }
 
   ngOnDestroy(): void {

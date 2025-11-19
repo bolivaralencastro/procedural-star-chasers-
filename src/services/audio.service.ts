@@ -59,7 +59,7 @@ export class AudioService {
   }
 
   private loadSounds() {
-    const soundPathPrefix = 'assets/sounds/'; // Organized path for future sound files
+    const soundPathPrefix = '/assets/sounds/'; // Organized path for future sound files
     SOUND_ASSETS.forEach(asset => {
       if (asset.type === 'oneshot' || asset.type === 'loop') {
         const audio = new Audio(soundPathPrefix + asset.path);
@@ -219,16 +219,23 @@ export class AudioService {
     // Orbit loop
     const orbitSound = this.sounds.get('orbit');
     if(orbitSound) {
-        let targetOrbitVolume = isOrbiting ? 0.6 : 0;
+        // Increase volume when orbiting (was 0.6, now 0.8)
+        let targetOrbitVolume = isOrbiting ? 0.8 : 0;
+        
         if (isOrbiting && orbitSound.paused) {
             orbitSound.play().catch(e => console.error("Orbit sound failed to start", e));
         }
+        
         if (isOrbiting && orbitingShipSpeed !== undefined) {
-            orbitSound.playbackRate = 1 + (orbitingShipSpeed / 0.3);
+            // Adjust playback rate based on speed, but keep it within reasonable limits
+            orbitSound.playbackRate = Math.max(0.5, Math.min(2.0, 1 + (orbitingShipSpeed / 0.3)));
         }
         
+        // Smooth volume transition
         orbitSound.volume = this.lerp(orbitSound.volume, targetOrbitVolume, 0.1);
-        if (orbitSound.volume < 0.01 && !orbitSound.paused) {
+        
+        // Stop sound if volume is very low and we're not orbiting
+        if (!isOrbiting && orbitSound.volume < 0.01 && !orbitSound.paused) {
             orbitSound.pause();
             orbitSound.currentTime = 0;
         }
@@ -250,8 +257,11 @@ export class AudioService {
   updateBackgroundMusic(isHunting: boolean, isCoop: boolean, anyShipCelebrating: boolean) {
     if (!this.audioContextUnlocked || this.isMuted()) return;
 
-    let targetTrack: LoopSoundName | null = null;
+    // For now, always play deep space as we don't have other themes
+    const targetTrack: LoopSoundName = 'normal_mode';
 
+    /* 
+    // Logic disabled until we have real audio files for these themes
     if (anyShipCelebrating) {
       targetTrack = 'victory_theme';
     } else if (isCoop) {
@@ -261,6 +271,7 @@ export class AudioService {
     } else {
       targetTrack = 'normal_mode';
     }
+    */
 
     // If the track is already playing, don't do anything
     if (this.currentBackgroundTrack === targetTrack) {
