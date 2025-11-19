@@ -1,5 +1,6 @@
-import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { LinkedInShareService } from '../../services/linkedin-share.service';
 
 @Component({
   selector: 'app-about-dialog',
@@ -87,14 +88,48 @@ import { CommonModule } from '@angular/common';
                 <p class="leading-relaxed text-gray-400">
                   With a passion for creating immersive experiences and exploring the intersection of art, technology, and interactivity. Bolivar combines strategic design thinking with artistic vision to craft meaningful digital experiences.
                 </p>
-                <a
-                  href="https://www.bolivaralencastro.com.br/?ref=Star-Chasers&utm_source=site&utm_medium=divulgacao&utm_campaign=star-chasers&utm_term=sobre&utm_content=site"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-block mt-4 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg font-semibold transition-all hover:shadow-lg hover:shadow-purple-500/50"
+                <div class="flex flex-wrap gap-3 mt-4">
+                  <a
+                    href="https://www.bolivaralencastro.com.br/?ref=Star-Chasers&utm_source=site&utm_medium=divulgacao&utm_campaign=star-chasers&utm_term=sobre&utm_content=site"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-block px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 rounded-lg font-semibold transition-all hover:shadow-lg hover:shadow-purple-500/50"
+                  >
+                    Visit Portfolio →
+                  </a>
+                </div>
+              </div>
+            </section>
+
+            <!-- Share Section -->
+            <section class="border-t border-gray-700 pt-8">
+              <h2 class="text-xl font-bold text-green-400 mb-4">🚀 Share This Experience</h2>
+              <p class="leading-relaxed text-gray-400 mb-4">
+                Love this game? Share it with your professional network and help others discover this unique interstellar experience.
+              </p>
+              <div class="flex flex-wrap gap-3">
+                <button
+                  (click)="shareOnLinkedIn()"
+                  class="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-600 hover:to-cyan-500 rounded-lg font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 text-white"
+                  title="Share on LinkedIn"
                 >
-                  Visit Portfolio →
-                </a>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.225 0z"/>
+                  </svg>
+                  Share on LinkedIn
+                </button>
+                
+                <button
+                  (click)="copyShareLink()"
+                  class="flex items-center gap-2 px-6 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-all hover:shadow-lg hover:shadow-gray-500/30 text-white"
+                  [title]="copyFeedback() ? 'Copied!' : 'Copy share link to clipboard'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                  </svg>
+                  {{ copyFeedback() ? '✓ Copied!' : 'Copy Link' }}
+                </button>
               </div>
             </section>
 
@@ -136,6 +171,9 @@ import { CommonModule } from '@angular/common';
 })
 export class AboutDialogComponent {
   isOpen = signal(false);
+  copyFeedback = signal(false);
+
+  private linkedInShareService = inject(LinkedInShareService);
 
   open() {
     this.isOpen.set(true);
@@ -143,6 +181,18 @@ export class AboutDialogComponent {
 
   close() {
     this.isOpen.set(false);
+  }
+
+  shareOnLinkedIn() {
+    this.linkedInShareService.shareOnLinkedIn();
+  }
+
+  async copyShareLink() {
+    const success = await this.linkedInShareService.copyShareLink();
+    if (success) {
+      this.copyFeedback.set(true);
+      setTimeout(() => this.copyFeedback.set(false), 2000);
+    }
   }
 
   closeDialog(event: MouseEvent) {
