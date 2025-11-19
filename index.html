@@ -34,6 +34,25 @@
     <!-- Instagram (stored as Pinterest equivalent) -->
     <meta property="instagram:image" content="https://bolivaralencastro.github.io/procedural-star-chasers-/assets/og/og-image-facebook-1200x630.png" />
     
+    <!-- Facebook App Link & Sharing Optimization -->
+    <meta property="fb:app_id" content="placeholder_app_id" />
+    <meta property="og:see_also" content="https://www.bolivaralencastro.com.br" />
+    
+    <!-- Mobile App Deep Linking (optional for future app) -->
+    <meta name="apple-itunes-app" content="app-id=placeholder_ios_app_id" />
+    <meta name="google-play-app" content="app-id=placeholder_android_app_id" />
+    
+    <!-- Article-specific metadata for better SEO -->
+    <meta property="article:published_time" content="2025-11-19T00:00:00+00:00" />
+    <meta property="article:author" content="https://www.bolivaralencastro.com.br" />
+    
+    <!-- Canonical URL for deduplication -->
+    <link rel="canonical" href="https://bolivaralencastro.github.io/procedural-star-chasers-/" />
+    
+    <!-- Mobile-friendly and accessibility improvements -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    
     <base href="./" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
@@ -71,8 +90,59 @@
   }
 }
 </script>
-</head>
+  </head>
   <body class="bg-black">
+    <!-- Facebook SDK for JavaScript (Event Tracking & Sharing Optimization) -->
+    <div id="fb-root"></div>
+    <script async defer crossorigin="anonymous" 
+      src="https://connect.facebook.net/en_US/sdk.js#xfbml=1&version=v18.0" 
+      integrity="sha512-XechuRDfJS8NFAwT5a/6IqhI4GWUYwxxhdorhrnuXg06Gc6rm0Fmbl8tFd9jnPNPrhCyO4+PpWv3SMiriDmvHg=="
+      crossorigin="anonymous"></script>
+    
     <app-root></app-root>
+    
+    <!-- Facebook & Mobile Referral Tracking -->
+    <script>
+      // Track referrer source for analytics
+      (function() {
+        const referrer = document.referrer || '';
+        
+        // Detect Facebook referrer
+        if (referrer.includes('facebook.com') || referrer.includes('fb.com')) {
+          console.log('User referred from Facebook');
+          // Store in sessionStorage for analytics
+          sessionStorage.setItem('fb_referrer', 'facebook');
+        }
+        
+        // Detect mobile app referrer
+        const userAgent = navigator.userAgent;
+        if (userAgent.includes('FB_IAB/FB4A')) {
+          console.log('Accessed via Facebook Android app');
+          sessionStorage.setItem('fb_mobile_platform', 'android');
+        } else if (userAgent.includes('FBAN/FBIOS')) {
+          console.log('Accessed via Facebook iOS app');
+          sessionStorage.setItem('fb_mobile_platform', 'ios');
+        }
+        
+        // Track if accessed via mobile
+        if (/iPhone|iPad|iPod|Android/i.test(userAgent)) {
+          sessionStorage.setItem('access_platform', 'mobile');
+        }
+      })();
+    </script>
+    
+    <!-- Prevent Unwanted Phone Number Auto-Linking on Mobile -->
+    <script>
+      (function() {
+        // Apple's automatic phone number detection
+        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A' && e.target.href.startsWith('tel:')) {
+              e.preventDefault();
+            }
+          });
+        }
+      })();
+    </script>
   </body>
 </html>
