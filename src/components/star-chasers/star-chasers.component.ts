@@ -140,12 +140,9 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private formationAssignments = new Map<number, Vector2D>();
 
   // Long-press properties for mobile
-  private longPressTimer: any = null;
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private touchStartPosition: Vector2D | null = null;
-  private readonly LONG_PRESS_DURATION = GAME_CONSTANTS.LONG_PRESS_DURATION;
-  private readonly CONTEXT_MENU_WIDTH = GAME_CONSTANTS.CONTEXT_MENU_WIDTH;
-  private readonly CONTEXT_MENU_HEIGHT = GAME_CONSTANTS.CONTEXT_MENU_HEIGHT;
-  
+
   // Scaling properties
   private renderScale = 1.0;
   private worldWidth = 0;
@@ -159,15 +156,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:mousemove', ['$event'])
   onMouseMove(event: MouseEvent) {
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    this.mouse.pos.x = (event.clientX - rect.left) / this.renderScale;
-    this.mouse.pos.y = (event.clientY - rect.top) / this.renderScale;
-    
-    // Handle first interaction to unlock audio
-    if (!this.firstInteractionHandled) {
-      this.audioService.handleFirstInteraction();
-      this.firstInteractionHandled = true;
-    }
+    this.firstInteractionHandled = EventHandlersManager.handleMouseMove(
+      event,
+      this.canvasRef.nativeElement,
+      this.renderScale,
+      this.mouse,
+      this.firstInteractionHandled,
+      this.handleFirstInteraction.bind(this)
+    );
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -231,109 +227,71 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   
   @HostListener('document:touchmove', ['$event'])
   onTouchMove(event: TouchEvent) {
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const touch = event.touches[0];
-    const touchX = touch.clientX - rect.left;
-    const touchY = touch.clientY - rect.top;
-    this.mouse.pos.x = touchX / this.renderScale;
-    this.mouse.pos.y = touchY / this.renderScale;
-  
-    if (this.longPressTimer && this.touchStartPosition) {
-      if (EventHandlersManager.shouldCancelLongPress(this.touchStartPosition, this.mouse.pos, this.renderScale)) {
-        clearTimeout(this.longPressTimer);
+    this.longPressTimer = EventHandlersManager.handleTouchMove(
+      event,
+      this.canvasRef.nativeElement,
+      this.renderScale,
+      this.mouse,
+      this.touchStartPosition,
+      this.longPressTimer,
+      () => {
+        clearTimeout(this.longPressTimer!);
         this.longPressTimer = null;
       }
-    }
+    );
   }
 
   @HostListener('document:mousedown', ['$event'])
   onMouseDown(event: MouseEvent) {
-    if (event.button === 2) {
-      event.preventDefault();
-      this.showContextMenu(event.clientX, event.clientY);
-      return;
-    }
+    const result = EventHandlersManager.handleMouseDown(event, {
+      contextMenu: this.contextMenu,
+      contextMenuElement: this.contextMenuRef?.nativeElement,
+      mouseInteractionEnabled: this.mouseInteractionEnabled(),
+      wormhole: this.wormhole,
+      mouse: this.mouse,
+      onFirstInteraction: this.handleFirstInteraction.bind(this),
+      onShowContextMenu: (x, y) => this.showContextMenu(x, y),
+      onCloseContextMenu: () => {
+        this.contextMenu.visible = false;
+        this.cdr.detectChanges();
+      },
+      onCreateWormhole: () => this.createWormhole(),
+    });
 
-    if (this.contextMenu.visible) {
-      const menuElement = this.contextMenuRef?.nativeElement;
-      const eventTarget = event.target as Node | null;
-
-      if (menuElement && eventTarget && menuElement.contains(eventTarget)) {
-        return;
-      }
-
-      this.contextMenu.visible = false;
-      this.cdr.detectChanges();
-    }
-    
-    // Handle first interaction to unlock audio
-    if (!this.firstInteractionHandled) {
-      this.audioService.handleFirstInteraction();
-      this.firstInteractionHandled = true;
-    }
-    
-    if (event.button === 0) { // Only left click
-      if (this.mouseInteractionEnabled()) {
-          this.mouse.isDown = true;
-      } else if (!this.wormhole) {
-          this.createWormhole();
-      }
-    }
+    this.contextMenu = result.contextMenu;
+    this.mouse.isDown = result.mouseIsDown;
   }
 
   @HostListener('document:touchstart', ['$event'])
   onTouchStart(event: TouchEvent) {
-    if (!this.isMobile()) return; // Only handle this for mobile devices
-    
-    // Handle first interaction to unlock audio
-    this.audioService.handleFirstInteraction();
-    
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const touch = event.touches[0];
-    const touchX = touch.clientX - rect.left;
-    const touchY = touch.clientY - rect.top;
-
-    this.mouse.pos.x = touchX / this.renderScale;
-    this.mouse.pos.y = touchY / this.renderScale;
-  
-    // Check if the touch is on the mobile floating menu
-    if (this.mobileMenuVisible()) {
-      const menuElement = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (menuElement && (menuElement.closest('.mobile-menu') || menuElement.classList.contains('mobile-menu'))) {
-        // Don't hide the menu if we're touching it - let the click event handle the menu items
-        event.preventDefault();
-        return;
-      } else {
-        // Touch is outside the menu, close it
+    const result = EventHandlersManager.handleTouchStart(event, {
+      canvas: this.canvasRef.nativeElement,
+      renderScale: this.renderScale,
+      isMobile: this.isMobile(),
+      mobileMenuVisible: this.mobileMenuVisible(),
+      contextMenu: this.contextMenu,
+      mouseInteractionEnabled: this.mouseInteractionEnabled(),
+      mouse: this.mouse,
+      wormhole: this.wormhole,
+      onFirstInteraction: this.handleFirstInteraction.bind(this),
+      onCloseContextMenu: () => {
+        this.contextMenu.visible = false;
+        this.cdr.detectChanges();
+      },
+      onCloseMobileMenu: () => {
         this.mobileMenuVisible.set(false);
         this.cdr.detectChanges();
-        // Check if it's a tap on a ship to speed it up
-        this.handleShipTap();
-        return;
-      }
-    }
-    
-    // Check if it's a tap on a ship to speed it up
-    if (!this.contextMenu.visible) {
-      this.handleShipTap();
-    }
-    
-    // Start long-press timer to show context menu only if mouse interaction is enabled
-    if (this.mouseInteractionEnabled()) {
-      this.touchStartPosition = new Vector2D(this.mouse.pos.x, this.mouse.pos.y);
-      this.longPressTimer = setTimeout(() => {
-        event.preventDefault(); // Prevent default context menu on some devices
-        this.showContextMenu(touch.clientX, touch.clientY);
-        this.longPressTimer = null;
-      }, this.LONG_PRESS_DURATION);
-    }
-  
-    // Handle regular "click" for orbiting/wormholes (will be handled on touchend)
-    if (this.mouseInteractionEnabled()) {
-      this.mouse.isDown = true;
-    } else if (!this.wormhole) {
-      this.createWormhole();
-    }
+      },
+      onShowContextMenu: (x, y) => this.showContextMenu(x, y),
+      onCreateWormhole: () => this.createWormhole(),
+      onShipTap: () => this.handleShipTap(),
+    });
+
+    this.contextMenu = result.contextMenu;
+    this.mobileMenuVisible.set(result.mobileMenuVisible);
+    this.mouse.isDown = result.mouseIsDown;
+    this.longPressTimer = result.longPressTimer;
+    this.touchStartPosition = result.touchStartPosition;
   }
 
   @HostListener('document:mouseup')
@@ -372,10 +330,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  private showContextMenu(clientX: number, clientY: number) {
+  private showContextMenu(clientX: number, clientY: number): ContextMenuState {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     this.contextMenu = InputManager.showContextMenu(clientX, clientY, rect, this.contextMenu);
     this.cdr.detectChanges();
+    return this.contextMenu;
   }
 
   public toggleMouseInteraction(event: Event) {
@@ -418,6 +377,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private normalizeControlKey(key: string): ControlKey | null {
     return InputManager.normalizeControlKey(key);
+  }
+
+  private handleFirstInteraction() {
+    if (this.firstInteractionHandled) {
+      return;
+    }
+    this.audioService.handleFirstInteraction();
+    this.firstInteractionHandled = true;
   }
 
   private toggleShipControl() {
