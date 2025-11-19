@@ -1,5 +1,7 @@
 # ✨ Procedural Star Chasers
 
+![Procedural Star Chasers](./src/assets/og/og-image-facebook-&-og-padrão-1200\ x\ 630.png)
+
 > *Where gravity becomes art, and competition becomes poetry.*
 
 ## 🌌 Concept
