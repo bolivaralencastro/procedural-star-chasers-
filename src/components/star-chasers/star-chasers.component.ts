@@ -43,6 +43,7 @@ import { WormholeManager } from './wormhole-manager';
 import { ShipBehaviorManager } from './ship-behavior-manager';
 import { GameStateManager } from './game-state-manager';
 import { RadioManager } from './radio-manager';
+import { CollisionManager } from './collision-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -654,55 +655,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private updateShipCollisions() {
-    for (let i = 0; i < this.ships.length; i++) {
-        for (let j = i + 1; j < this.ships.length; j++) {
-            const shipA = this.ships[i];
-            const shipB = this.ships[j];
-
-            // Ignore collisions for ships in special states
-            if (shipA.state === 'orbiting' || shipA.state === 'celebrating' || shipA.state === 'paralyzed' ||
-                shipB.state === 'orbiting' || shipB.state === 'celebrating' || shipB.state === 'paralyzed') {
-                continue;
-            }
-
-            const radiusA = shipA.radius * (1 + shipA.z * 0.4);
-            const radiusB = shipB.radius * (1 + shipB.z * 0.4);
-            const combinedRadius = radiusA + radiusB;
-            const dist = Vector2D.distance(shipA.position, shipB.position);
-
-            this.maybeTriggerProximityChatter(shipA, shipB, dist, combinedRadius);
-
-            if (dist < combinedRadius) {
-                // Collision detected
-                const overlap = combinedRadius - dist;
-                const normal = dist === 0
-                    ? new Vector2D(1, 0)
-                    : shipA.position.clone().subtract(shipB.position).normalize();
-
-                // 1. Static resolution: Separate them to prevent sticking
-                shipA.position.add(normal.clone().multiply(overlap / 2));
-                shipB.position.subtract(normal.clone().multiply(overlap / 2));
-
-                // 2. Dynamic resolution: Billiard-style elastic collision
-                const relativeVelocity = shipA.velocity.clone().subtract(shipB.velocity);
-                const normalSpeed = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
-
-                // Skip if ships are already moving apart
-                if (normalSpeed > 0) {
-                  continue;
-                }
-
-                const restitution = 0.9; // Slight energy loss to avoid jitter
-                const massA = Math.max(1, radiusA * radiusA);
-                const massB = Math.max(1, radiusB * radiusB);
-                const impulseScalar = (-(1 + restitution) * normalSpeed) / (1 / massA + 1 / massB);
-                const impulse = normal.clone().multiply(impulseScalar);
-
-                shipA.velocity.add(impulse.clone().divide(massA));
-                shipB.velocity.subtract(impulse.clone().divide(massB));
-            }
-        }
-    }
+    CollisionManager.updateShipCollisions(this.ships, this.maybeTriggerProximityChatter.bind(this));
   }
 
   private maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
