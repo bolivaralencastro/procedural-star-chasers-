@@ -58,11 +58,27 @@ export class AudioService {
     this.registerInteractionUnlock();
   }
 
+  private getSoundUrl(relativePath: string): string {
+    const baseHref = typeof document !== 'undefined'
+      ? document.querySelector('base')?.getAttribute('href') ?? './'
+      : './';
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+
+    try {
+      const baseUrl = new URL(baseHref, origin);
+      return new URL(`assets/sounds/${relativePath}`, baseUrl).toString();
+    } catch {
+      return `assets/sounds/${relativePath}`;
+    }
+  }
+
   private loadSounds() {
-    const soundPathPrefix = '/assets/sounds/'; // Organized path for future sound files
     SOUND_ASSETS.forEach(asset => {
+      const soundUrl = this.getSoundUrl(asset.path);
+
       if (asset.type === 'oneshot' || asset.type === 'loop') {
-        const audio = new Audio(soundPathPrefix + asset.path);
+        const audio = new Audio(soundUrl);
         audio.volume = asset.initialVolume;
         if (asset.type === 'loop') {
           audio.loop = true;
@@ -71,7 +87,7 @@ export class AudioService {
       } else if (asset.type === 'pool') {
         const pool: HTMLAudioElement[] = [];
         for (let i = 0; i < (asset.poolSize || 5); i++) {
-          const audio = new Audio(soundPathPrefix + asset.path);
+          const audio = new Audio(soundUrl);
           audio.volume = asset.initialVolume;
           pool.push(audio);
         }
