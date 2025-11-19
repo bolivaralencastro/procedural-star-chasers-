@@ -17,7 +17,7 @@ import { CommonModule } from '@angular/common';
 import { AudioService } from '../../services/audio.service';
 import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
 import { RadioChatterService, RadioContext } from '../../services/radio-chatter.service';
-import { PERSONALITIES, ShipColor, ShipPersonality } from '../../models/ship-personas';
+import { PERSONALITIES, SHIP_PERSONAS, ShipColor, ShipPersonality } from '../../models/ship-personas';
 
 // Helper Vector2D class
 class Vector2D {
@@ -39,6 +39,7 @@ type ControlKey = 'up' | 'down' | 'left' | 'right' | 'space' | 'reload';
 interface Ship {
   id: number;
   color: ShipColor;
+  codename: string;
   hexColor: string;
   position: Vector2D;
   velocity: Vector2D;
@@ -661,6 +662,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.ships = colors.map((c, i) => ({
       id: i,
       color: c.name,
+      codename: SHIP_PERSONAS[c.name].codename,
       hexColor: c.hex,
       position: new Vector2D(Math.random() * this.worldWidth, Math.random() * this.worldHeight),
       velocity: new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiply(0.5),
@@ -820,6 +822,9 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
     const now = Date.now();
     const isStarCapture = context === 'star_capture';
+    if (this.scoreTooltips.length > 0) {
+      return false;
+    }
     if (!isStarCapture && now < this.starCaptureLockUntil) {
       return false;
     }
@@ -1529,11 +1534,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       winner.celebrationTimer = winner.celebrationDuration;
     }
     this.audioService.playSound('celebrate');
+    this.createScoreTooltip(winner);
     this.enqueueRadioMessage(winner, 'star_capture');
     this.ships.forEach(c => {
         if (c.id !== winner.id && !this.isShipCurrentlyControlled(c)) c.state = 'idle';
     });
-    this.createScoreTooltip(winner);
     this.scheduleNextStar();
   }
 
