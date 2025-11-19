@@ -2183,13 +2183,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
       this.ctx.save();
       this.ctx.globalAlpha = opacity;
-      const font = 'bold 14px "Courier New", monospace';
+      const fontSize = this.isMobile() ? 16 : 14;
+      const font = `bold ${fontSize}px "Courier New", monospace`;
       this.ctx.font = font;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
 
-      const lineHeight = 18;
-      const padding = 12;
+      const lineHeight = this.isMobile() ? 22 : 18;
+      const padding = this.isMobile() ? 14 : 12;
       const lines = bubble.textLines.length > 0 ? bubble.textLines : [''];
       const textWidth = Math.max(...lines.map(line => this.ctx.measureText(line).width));
       const boxWidth = textWidth + padding * 2;
