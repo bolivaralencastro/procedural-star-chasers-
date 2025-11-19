@@ -39,6 +39,7 @@ import { TextUtils } from './text-utils';
 import { AsteroidManager } from './asteroid-manager';
 import { ProjectileManager } from './projectile-manager';
 import { ParticleEffectsManager } from './particle-effects-manager';
+import { WormholeManager } from './wormhole-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -772,97 +773,34 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private createWormhole() {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    let exitPosition: Vector2D;
-    
-    // Ensure exit isn't too close to entry
-    do {
-      exitPosition = new Vector2D(Math.random() * w, Math.random() * h);
-    } while (Vector2D.distance(this.mouse.pos, exitPosition) < 300);
-
-    this.wormhole = {
-      entry: {
-        position: this.mouse.pos.clone(),
-        radius: GAME_CONSTANTS.WORMHOLE_RADIUS_MIN,
-        pulseAngle: Math.random() * Math.PI * 2,
-      },
-      exit: {
-        position: exitPosition,
-        radius: GAME_CONSTANTS.WORMHOLE_RADIUS_MIN,
-        pulseAngle: Math.random() * Math.PI * 2,
-      },
-      life: GAME_CONSTANTS.WORMHOLE_LIFETIME,
-      maxLife: GAME_CONSTANTS.WORMHOLE_LIFETIME,
-    };
+    this.wormhole = WormholeManager.create(this.mouse.pos, this.worldWidth, this.worldHeight);
     this.audioService.playSound('wormhole_open');
   }
 
   private updateWormhole() {
     if (!this.wormhole) return;
 
-    this.wormhole.life -= 16.67; // Approx deltaTime
-    if (this.wormhole.life <= 0) {
+    const isActive = WormholeManager.update(this.wormhole);
+    
+    if (!isActive) {
       this.audioService.playSound('wormhole_close');
       this.wormhole = null;
       return;
     }
 
-    this.wormhole.entry.pulseAngle += 0.08;
-    this.wormhole.exit.pulseAngle += 0.08;
+    const onTeleport = (position: Vector2D) => {
+      this.createBlinkParticles(position, '#FFFFFF');
+      this.audioService.playSound('launch');
+    };
 
-    this.ships.forEach(s => this.processWormholeInteraction(s));
-    this.asteroids.forEach(a => this.processWormholeInteraction(a));
-    this.projectiles.forEach(p => this.processWormholeInteraction(p));
+    this.ships.forEach(s => WormholeManager.processInteraction(s, this.wormhole!, onTeleport));
+    this.asteroids.forEach(a => WormholeManager.processInteraction(a, this.wormhole!, onTeleport));
+    this.projectiles.forEach(p => WormholeManager.processInteraction(p, this.wormhole!, onTeleport));
   }
 
   private processWormholeInteraction(entity: Ship | Asteroid | Projectile) {
-    if (!this.wormhole) return;
-
-    if (entity.justTeleported && entity.justTeleported > 0) {
-      entity.justTeleported--;
-      return;
-    }
-    entity.justTeleported = 0;
-
-    const { entry, exit } = this.wormhole;
-    const targets = [entry, exit];
-    const destinations = [exit, entry];
-
-    for (let i = 0; i < targets.length; i++) {
-      const target = targets[i];
-      const destination = destinations[i];
-      const dist = Vector2D.distance(entity.position, target.position);
-      
-      const attractionRadius = 150;
-      if (dist > target.radius && dist < attractionRadius) {
-        const pull = target.position.clone().subtract(entity.position).normalize();
-        const strength = (1 - dist / attractionRadius) * 0.4;
-        if ('acceleration' in entity) {
-          (entity as Ship).acceleration.add(pull.multiply(strength));
-        } else {
-          entity.velocity.add(pull.multiply(strength * 0.3));
-        }
-      }
-
-      if (dist < target.radius) {
-        this.audioService.playSound('launch');
-        this.createBlinkParticles(entity.position, '#FFFFFF');
-
-        entity.position = destination.position.clone();
-        const exitDirection = new Vector2D(Math.random() - 0.5, Math.random() - 0.5).normalize();
-        const speed = entity.velocity.magnitude();
-        entity.velocity = exitDirection.multiply(speed > 1 ? speed : 2);
-        entity.justTeleported = GAME_CONSTANTS.WORMHOLE_TELEPORT_COOLDOWN_FRAMES;
-
-        this.createBlinkParticles(entity.position, '#FFFFFF');
-        
-        if ('tail' in entity && Array.isArray(entity.tail)) {
-          entity.tail = [];
-        }
-        break;
-      }
-    }
+    // This method is now handled by WormholeManager
+    // Keeping for compatibility if needed elsewhere
   }
 
   private checkForAsteroidEvent() {
