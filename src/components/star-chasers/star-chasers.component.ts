@@ -42,6 +42,7 @@ import { ParticleEffectsManager } from './particle-effects-manager';
 import { WormholeManager } from './wormhole-manager';
 import { ShipBehaviorManager } from './ship-behavior-manager';
 import { GameStateManager } from './game-state-manager';
+import { RadioManager } from './radio-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -705,19 +706,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
-    const proximityRadius = combinedRadius + 80;
-    if (distance > proximityRadius) return;
-
-    const pairKey = shipA.id < shipB.id ? `${shipA.id}-${shipB.id}` : `${shipB.id}-${shipA.id}`;
-    const now = Date.now();
-    const availableAt = this.proximityCooldowns.get(pairKey) ?? 0;
-    if (now < availableAt) return;
-
-    const speaker = Math.random() > 0.5 ? shipA : shipB;
-    const emitted = this.enqueueRadioMessage(speaker, 'proximity');
-    if (emitted) {
-      this.proximityCooldowns.set(pairKey, now + 8000 + Math.random() * 7000);
-    }
+    RadioManager.maybeTriggerProximityChatter(
+      shipA,
+      shipB,
+      distance,
+      combinedRadius,
+      this.proximityCooldowns,
+      this.enqueueRadioMessage.bind(this)
+    );
   }
 
   private triggerLaunchChatter(ship: Ship) {
@@ -725,46 +721,25 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
-    const now = Date.now();
-    const isStarCapture = context === 'star_capture';
-    if (this.scoreTooltips.length > 0) {
-      return false;
-    }
-    if (!isStarCapture && now < this.starCaptureLockUntil) {
-      return false;
-    }
-    if (!isStarCapture && now < this.globalChatterCooldownUntil) {
-      return false;
-    }
-
-    const shipAvailableAt = this.shipChatterAvailableAt.get(ship.id) ?? 0;
-    if (!isStarCapture && now < shipAvailableAt) {
-      return false;
-    }
-
-    const line = this.radioService.takeLine(ship.color, context);
-    if (!line) {
-      return false;
-    }
-
-    const bubbleLife = Math.round(this.radioService.getMessageDuration() / 16.67);
-    this.radioBubbles.push({
-      shipId: ship.id,
-      textLines: this.wrapRadioText(line, 240),
-      position: ship.position.clone(),
-      life: bubbleLife,
-      maxLife: bubbleLife,
-      color: ship.hexColor,
+    const result = RadioManager.enqueueRadioMessage(
+      ship,
       context,
-    });
-
-    this.globalChatterCooldownUntil = now + this.radioService.getGlobalCooldown();
-    this.shipChatterAvailableAt.set(ship.id, now + this.getShipChatterDelay());
-    if (isStarCapture) {
-      this.starCaptureLockUntil = now + this.radioService.getMessageDuration();
-      this.radioBubbles = this.radioBubbles.filter(bubble => bubble.context === 'star_capture');
+      this.radioBubbles,
+      this.scoreTooltips,
+      this.globalChatterCooldownUntil,
+      this.starCaptureLockUntil,
+      this.shipChatterAvailableAt,
+      this.radioService,
+      this.wrapRadioText.bind(this)
+    );
+    
+    if (result.success) {
+      this.globalChatterCooldownUntil = result.newGlobalCooldown;
+      this.starCaptureLockUntil = result.newStarCaptureLock;
+      this.shipChatterAvailableAt.set(ship.id, result.newShipDelay);
     }
-    return true;
+    
+    return result.success;
   }
 
   private getRandomActiveShip(): Ship | null {
@@ -1257,45 +1232,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private updateRadioBubbles() {
-    for (let i = this.radioBubbles.length - 1; i >= 0; i--) {
-      const bubble = this.radioBubbles[i];
-      bubble.life--;
-      if (bubble.life <= 0) {
-        this.radioBubbles.splice(i, 1);
-        continue;
-      }
-
-      const ship = this.ships.find(c => c.id === bubble.shipId);
-      if (ship) {
-        bubble.position.x = ship.position.x;
-        bubble.position.y = ship.position.y - ship.radius - 55;
-      }
-    }
+    RadioManager.updateRadioBubbles(this.radioBubbles, this.ships);
   }
 
   private updatePhilosophicalChatter() {
-    const now = Date.now();
-    if (now < this.philosophicalChatterNextTime) {
-      return;
-    }
-
-    // Only trigger philosophical chatter when ships are mostly idle
-    const activeShips = this.ships.filter(s => s.state === 'idle' || s.state === 'hunting');
-    if (activeShips.length < this.ships.length * 0.7) { // At least 70% of ships should be relatively idle
-      return;
-    }
-
-    const randomShip = this.getRandomActiveShip();
-    if (!randomShip) {
-      return;
-    }
-
-    // Try to enqueue a philosophical message
-    const emitted = this.enqueueRadioMessage(randomShip, 'philosophical');
-    if (emitted) {
-      // Set next philosophical chatter time (random between 15-25 minutes to make it rare)
-      this.philosophicalChatterNextTime = now + 900000 + Math.random() * 600000; // 15-25 minutes
-    }
+    this.philosophicalChatterNextTime = RadioManager.maybePhilosophicalChatter(
+      this.ships,
+      this.philosophicalChatterNextTime,
+      this.enqueueRadioMessage.bind(this),
+      this.getRandomActiveShip.bind(this)
+    );
   }
 
   private updateParticles() {
@@ -1933,10 +1879,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private wrapRadioText(text: string, maxWidth: number): string[] {
     return TextUtils.wrapText(this.ctx, text, maxWidth);
-  }
-
-  private getShipChatterDelay(): number {
-    return TextUtils.getRandomDelay(this.SHIP_CHATTER_DELAY_RANGE);
   }
 
   private toggleConstellationMode() {
