@@ -40,6 +40,10 @@ import { AsteroidManager } from './asteroid-manager';
 import { ProjectileManager } from './projectile-manager';
 import { ParticleEffectsManager } from './particle-effects-manager';
 import { WormholeManager } from './wormhole-manager';
+import { ShipBehaviorManager } from './ship-behavior-manager';
+import { GameStateManager } from './game-state-manager';
+import { RadioManager } from './radio-manager';
+import { CollisionManager } from './collision-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -651,71 +655,18 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private updateShipCollisions() {
-    for (let i = 0; i < this.ships.length; i++) {
-        for (let j = i + 1; j < this.ships.length; j++) {
-            const shipA = this.ships[i];
-            const shipB = this.ships[j];
-
-            // Ignore collisions for ships in special states
-            if (shipA.state === 'orbiting' || shipA.state === 'celebrating' || shipA.state === 'paralyzed' ||
-                shipB.state === 'orbiting' || shipB.state === 'celebrating' || shipB.state === 'paralyzed') {
-                continue;
-            }
-
-            const radiusA = shipA.radius * (1 + shipA.z * 0.4);
-            const radiusB = shipB.radius * (1 + shipB.z * 0.4);
-            const combinedRadius = radiusA + radiusB;
-            const dist = Vector2D.distance(shipA.position, shipB.position);
-
-            this.maybeTriggerProximityChatter(shipA, shipB, dist, combinedRadius);
-
-            if (dist < combinedRadius) {
-                // Collision detected
-                const overlap = combinedRadius - dist;
-                const normal = dist === 0
-                    ? new Vector2D(1, 0)
-                    : shipA.position.clone().subtract(shipB.position).normalize();
-
-                // 1. Static resolution: Separate them to prevent sticking
-                shipA.position.add(normal.clone().multiply(overlap / 2));
-                shipB.position.subtract(normal.clone().multiply(overlap / 2));
-
-                // 2. Dynamic resolution: Billiard-style elastic collision
-                const relativeVelocity = shipA.velocity.clone().subtract(shipB.velocity);
-                const normalSpeed = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
-
-                // Skip if ships are already moving apart
-                if (normalSpeed > 0) {
-                  continue;
-                }
-
-                const restitution = 0.9; // Slight energy loss to avoid jitter
-                const massA = Math.max(1, radiusA * radiusA);
-                const massB = Math.max(1, radiusB * radiusB);
-                const impulseScalar = (-(1 + restitution) * normalSpeed) / (1 / massA + 1 / massB);
-                const impulse = normal.clone().multiply(impulseScalar);
-
-                shipA.velocity.add(impulse.clone().divide(massA));
-                shipB.velocity.subtract(impulse.clone().divide(massB));
-            }
-        }
-    }
+    CollisionManager.updateShipCollisions(this.ships, this.maybeTriggerProximityChatter.bind(this));
   }
 
   private maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
-    const proximityRadius = combinedRadius + 80;
-    if (distance > proximityRadius) return;
-
-    const pairKey = shipA.id < shipB.id ? `${shipA.id}-${shipB.id}` : `${shipB.id}-${shipA.id}`;
-    const now = Date.now();
-    const availableAt = this.proximityCooldowns.get(pairKey) ?? 0;
-    if (now < availableAt) return;
-
-    const speaker = Math.random() > 0.5 ? shipA : shipB;
-    const emitted = this.enqueueRadioMessage(speaker, 'proximity');
-    if (emitted) {
-      this.proximityCooldowns.set(pairKey, now + 8000 + Math.random() * 7000);
-    }
+    RadioManager.maybeTriggerProximityChatter(
+      shipA,
+      shipB,
+      distance,
+      combinedRadius,
+      this.proximityCooldowns,
+      this.enqueueRadioMessage.bind(this)
+    );
   }
 
   private triggerLaunchChatter(ship: Ship) {
@@ -723,46 +674,25 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
-    const now = Date.now();
-    const isStarCapture = context === 'star_capture';
-    if (this.scoreTooltips.length > 0) {
-      return false;
-    }
-    if (!isStarCapture && now < this.starCaptureLockUntil) {
-      return false;
-    }
-    if (!isStarCapture && now < this.globalChatterCooldownUntil) {
-      return false;
-    }
-
-    const shipAvailableAt = this.shipChatterAvailableAt.get(ship.id) ?? 0;
-    if (!isStarCapture && now < shipAvailableAt) {
-      return false;
-    }
-
-    const line = this.radioService.takeLine(ship.color, context);
-    if (!line) {
-      return false;
-    }
-
-    const bubbleLife = Math.round(this.radioService.getMessageDuration() / 16.67);
-    this.radioBubbles.push({
-      shipId: ship.id,
-      textLines: this.wrapRadioText(line, 240),
-      position: ship.position.clone(),
-      life: bubbleLife,
-      maxLife: bubbleLife,
-      color: ship.hexColor,
+    const result = RadioManager.enqueueRadioMessage(
+      ship,
       context,
-    });
-
-    this.globalChatterCooldownUntil = now + this.radioService.getGlobalCooldown();
-    this.shipChatterAvailableAt.set(ship.id, now + this.getShipChatterDelay());
-    if (isStarCapture) {
-      this.starCaptureLockUntil = now + this.radioService.getMessageDuration();
-      this.radioBubbles = this.radioBubbles.filter(bubble => bubble.context === 'star_capture');
+      this.radioBubbles,
+      this.scoreTooltips,
+      this.globalChatterCooldownUntil,
+      this.starCaptureLockUntil,
+      this.shipChatterAvailableAt,
+      this.radioService,
+      this.wrapRadioText.bind(this)
+    );
+    
+    if (result.success) {
+      this.globalChatterCooldownUntil = result.newGlobalCooldown;
+      this.starCaptureLockUntil = result.newStarCaptureLock;
+      this.shipChatterAvailableAt.set(ship.id, result.newShipDelay);
     }
-    return true;
+    
+    return result.success;
   }
 
   private getRandomActiveShip(): Ship | null {
@@ -804,9 +734,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private checkForAsteroidEvent() {
-    if (this.gameMode !== 'normal' || this.asteroids.length > 0) return;
-    const allHaveEnoughStars = this.ships.every(s => s.score >= this.eventTriggerScore);
-    if (allHaveEnoughStars && Math.random() < 0.25) {
+    if (GameStateManager.shouldTriggerAsteroidEvent(this.gameMode, this.asteroids.length, this.ships, this.eventTriggerScore)) {
         this.startAsteroidEvent();
     }
   }
@@ -840,17 +768,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
     
     if (this.targetStar.exists) {
-        this.targetStar.pulseAngle += 0.05;
-        if (this.targetStar.isDespawning) {
-            this.targetStar.opacity -= 0.02;
-            if (this.targetStar.opacity <= 0) {
-                this.targetStar.exists = false;
-                this.scheduleNextStar();
-            }
-        } else if (this.targetStar.opacity < 1) {
-            this.targetStar.opacity += 0.02;
-        }
-        if (!this.targetStar.isDespawning && Date.now() > this.targetStar.spawnTime + this.targetStar.lifetime) {
+        GameStateManager.updateTargetStar(this.targetStar, this.ships, this.worldWidth, this.worldHeight);
+        
+        if (this.targetStar.isDespawning && !this.targetStar.exists) {
+            this.scheduleNextStar();
+        } else if (!this.targetStar.isDespawning && Date.now() > this.targetStar.spawnTime + this.targetStar.lifetime) {
             this.targetStar.isDespawning = true;
             this.ships.forEach(c => {
               if (this.isShipCurrentlyControlled(c)) {
@@ -860,35 +782,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             });
         }
 
-        const totalRepulsion = new Vector2D();
-        const fleeRadius = 300;
-        this.ships.forEach(ship => {
-            const dist = Vector2D.distance(this.targetStar.position, ship.position);
-            if (dist > 0 && dist < fleeRadius) {
-                const repulsion = this.targetStar.position.clone().subtract(ship.position);
-                const strength = (1 - dist / fleeRadius) * 0.2;
-                repulsion.normalize().multiply(strength);
-                totalRepulsion.add(repulsion);
-            }
-        });
-        this.targetStar.acceleration.add(totalRepulsion);
-
-        const STAR_MAX_SPEED = 0.6;
-        this.targetStar.velocity.add(this.targetStar.acceleration);
-        this.targetStar.velocity.multiply(0.98);
-        if (this.targetStar.velocity.magnitude() > STAR_MAX_SPEED) {
-            this.targetStar.velocity.normalize().multiply(STAR_MAX_SPEED);
-        }
-        this.targetStar.position.add(this.targetStar.velocity);
-        this.targetStar.acceleration.multiply(0);
-        
-        const w = this.worldWidth;
-        const h = this.worldHeight;
-        if (this.targetStar.position.x < 0) this.targetStar.position.x = w;
-        if (this.targetStar.position.x > w) this.targetStar.position.x = 0;
-        if (this.targetStar.position.y < 0) this.targetStar.position.y = h;
-        if (this.targetStar.position.y > h) this.targetStar.position.y = 0;
-
         if (!this.targetStar.isDespawning && Math.random() < 0.5) {
             this.spawnStarParticle();
         }
@@ -896,23 +789,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private spawnTargetStar() {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    let validPosition = false;
-    while(!validPosition) {
-        this.targetStar.position = new Vector2D(w * 0.1 + Math.random() * w * 0.8, h * 0.1 + Math.random() * h * 0.8);
-        const tooClose = this.ships.some(c => Vector2D.distance(this.targetStar.position, c.position) < 150);
-        if (!tooClose) {
-            validPosition = true;
-        }
-    }
-    this.targetStar.exists = true;
-    this.targetStar.isDespawning = false;
-    this.targetStar.opacity = 0;
-    this.targetStar.pulseAngle = 0;
-    this.targetStar.velocity = new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiply(0.3);
-    this.targetStar.spawnTime = Date.now();
-    this.targetStar.lifetime = 12000 + Math.random() * 6000;
+    GameStateManager.spawnTargetStar(this.targetStar, this.ships, this.worldWidth, this.worldHeight);
     this.starParticles = [];
     this.ships.forEach(c => {
       if (this.isShipCurrentlyControlled(c)) {
@@ -923,110 +800,19 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private scheduleNextStar() {
-    const delay = 5000 + Math.random() * 10000;
-    this.nextStarSpawnTime = Date.now() + delay;
+    this.nextStarSpawnTime = GameStateManager.scheduleNextStar();
   }
 
   private updateNebulas() {
-    for (let i = this.nebulas.length - 1; i >= 0; i--) {
-      const nebula = this.nebulas[i];
-      nebula.life--;
-      if (nebula.life <= 0) {
-        this.nebulas.splice(i, 1);
-      }
-    }
+    GameStateManager.updateNebulas(this.nebulas);
   }
 
   private switchPersonality(ship: Ship) {
-    const currentPersonality = ship.personality;
-    let newPersonality = currentPersonality;
-    while (newPersonality === currentPersonality) {
-      newPersonality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
-    }
-    ship.personality = newPersonality;
-    ship.personalityTimer = 15000 + Math.random() * 15000; // 15-30 seconds for next change
-
-    if (newPersonality === 'patroller') {
-      ship.patrolTarget = new Vector2D(Math.random() * this.worldWidth, Math.random() * this.worldHeight);
-    } else {
-      ship.patrolTarget = undefined;
-    }
+    ShipBehaviorManager.switchPersonality(ship, this.worldWidth, this.worldHeight);
   }
 
   private applyPersonalityBehaviors(ship: Ship) {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-
-    switch (ship.personality) {
-      case 'aggressive': {
-        let nearestShip: Ship | null = null;
-        let minDist = Infinity;
-        this.ships.forEach(other => {
-          if (ship.id === other.id) return;
-          const d = Vector2D.distance(ship.position, other.position);
-          if (d < minDist) {
-            minDist = d;
-            nearestShip = other;
-          }
-        });
-        if (nearestShip) {
-          const direction = nearestShip.position.clone().subtract(ship.position).normalize();
-          ship.acceleration.add(direction.multiply(0.04));
-        }
-        break;
-      }
-      case 'timid': {
-        const fleeRadius = 250;
-        this.ships.forEach(other => {
-          if (ship.id === other.id) return;
-          const dist = Vector2D.distance(ship.position, other.position);
-          if (dist > 0 && dist < fleeRadius) {
-            const repulsion = ship.position.clone().subtract(other.position);
-            const strength = (1 - dist / fleeRadius) * 0.1;
-            repulsion.normalize().multiply(strength);
-            ship.acceleration.add(repulsion);
-          }
-        });
-        break;
-      }
-      case 'loner': {
-        const quadrants = [
-          { x: 0, y: 0, count: 0 }, { x: w / 2, y: 0, count: 0 },
-          { x: 0, y: h / 2, count: 0 }, { x: w / 2, y: h / 2, count: 0 }
-        ];
-        this.ships.forEach(c => {
-          if (c.position.x < w / 2 && c.position.y < h / 2) quadrants[0].count++;
-          else if (c.position.x >= w / 2 && c.position.y < h / 2) quadrants[1].count++;
-          else if (c.position.x < w / 2 && c.position.y >= h / 2) quadrants[2].count++;
-          else quadrants[3].count++;
-        });
-        quadrants.sort((a, b) => a.count - b.count);
-        const targetQuadrant = quadrants[0];
-        const targetPos = new Vector2D(targetQuadrant.x + w / 4, targetQuadrant.y + h / 4);
-        const direction = targetPos.subtract(ship.position).normalize();
-        ship.acceleration.add(direction.multiply(0.03));
-        break;
-      }
-      case 'patroller': {
-        if (!ship.patrolTarget || Vector2D.distance(ship.position, ship.patrolTarget) < 100) {
-          ship.patrolTarget = new Vector2D(Math.random() * w, Math.random() * h);
-        }
-        const direction = ship.patrolTarget.clone().subtract(ship.position).normalize();
-        ship.acceleration.add(direction.multiply(0.05));
-        break;
-      }
-      default: { // explorer
-        const randomAngle = (Math.random() - 0.5) * 0.1;
-        const newVelX = Math.cos(randomAngle) * ship.velocity.x - Math.sin(randomAngle) * ship.velocity.y;
-        const newVelY = Math.sin(randomAngle) * ship.velocity.x + Math.cos(randomAngle) * ship.velocity.y;
-        ship.velocity.x = newVelX;
-        ship.velocity.y = newVelY;
-        let idleSpeed = 0.8 + ship.speedBonus * 0.5;
-        if (ship.color === 'Blue') idleSpeed *= 1.25;
-        ship.velocity.normalize().multiply(idleSpeed);
-        break;
-      }
-    }
+    ShipBehaviorManager.applyPersonalityBehaviors(ship, this.ships, this.worldWidth, this.worldHeight);
   }
   
   private updateShip(ship: Ship) {
@@ -1344,31 +1130,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private performCelebration(ship: Ship) {
-    const progress = 1 - (ship.celebrationTimer / ship.celebrationDuration);
-    const easeMultiplier = Math.sin(progress * Math.PI);
-    switch (ship.color) {
-        case 'Red': // Zig-zag
-            ship.velocity.multiply(0.9);
-            const perp = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize();
-            if (Math.random() < 0.1) ship.zigZagDir *= -1;
-            ship.acceleration.add(perp.multiply(0.5 * ship.zigZagDir * easeMultiplier));
-            break;
-        case 'Green': // Spiral
-            const angle = (Date.now() / 200);
-            const radius = 2 + 30 * easeMultiplier;
-            ship.position.x += Math.cos(angle) * radius * 0.1;
-            ship.position.y += Math.sin(angle) * radius * 0.1;
-            ship.velocity.multiply(0.9);
-            break;
-        case 'Blue': // Loop
-            const turn = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize().multiply(0.3 * easeMultiplier);
-            ship.acceleration.add(turn);
-            break;
-    }
-    ship.velocity.add(ship.acceleration);
-    ship.velocity.normalize().multiply(3);
-    ship.position.add(ship.velocity);
-    ship.acceleration.multiply(0);
+    ShipBehaviorManager.performCelebration(ship);
   }
 
   private captureStar(winner: Ship) {
@@ -1399,7 +1161,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private createNebula(position: Vector2D) {
-    this.nebulas.push({ position, radius: 120, life: 600, maxLife: 600 });
+    GameStateManager.createNebula(this.nebulas, position);
   }
   
   private createScoreTooltip(ship: Ship) {
@@ -1423,45 +1185,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private updateRadioBubbles() {
-    for (let i = this.radioBubbles.length - 1; i >= 0; i--) {
-      const bubble = this.radioBubbles[i];
-      bubble.life--;
-      if (bubble.life <= 0) {
-        this.radioBubbles.splice(i, 1);
-        continue;
-      }
-
-      const ship = this.ships.find(c => c.id === bubble.shipId);
-      if (ship) {
-        bubble.position.x = ship.position.x;
-        bubble.position.y = ship.position.y - ship.radius - 55;
-      }
-    }
+    RadioManager.updateRadioBubbles(this.radioBubbles, this.ships);
   }
 
   private updatePhilosophicalChatter() {
-    const now = Date.now();
-    if (now < this.philosophicalChatterNextTime) {
-      return;
-    }
-
-    // Only trigger philosophical chatter when ships are mostly idle
-    const activeShips = this.ships.filter(s => s.state === 'idle' || s.state === 'hunting');
-    if (activeShips.length < this.ships.length * 0.7) { // At least 70% of ships should be relatively idle
-      return;
-    }
-
-    const randomShip = this.getRandomActiveShip();
-    if (!randomShip) {
-      return;
-    }
-
-    // Try to enqueue a philosophical message
-    const emitted = this.enqueueRadioMessage(randomShip, 'philosophical');
-    if (emitted) {
-      // Set next philosophical chatter time (random between 15-25 minutes to make it rare)
-      this.philosophicalChatterNextTime = now + 900000 + Math.random() * 600000; // 15-25 minutes
-    }
+    this.philosophicalChatterNextTime = RadioManager.maybePhilosophicalChatter(
+      this.ships,
+      this.philosophicalChatterNextTime,
+      this.enqueueRadioMessage.bind(this),
+      this.getRandomActiveShip.bind(this)
+    );
   }
 
   private updateParticles() {
@@ -1481,26 +1214,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private performBlink(ship: Ship) {
-    const BLINK_DISTANCE = 150;
-    const startPos = ship.position.clone();
-    let direction: Vector2D;
-    if (ship.state === 'hunting' && this.targetStar.exists) {
-      direction = this.targetStar.position.clone().subtract(ship.position).normalize();
-    } else {
-      direction = ship.velocity.magnitude() > 0 ? ship.velocity.clone().normalize() : new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
-    }
-    const endPos = startPos.clone().add(direction.multiply(BLINK_DISTANCE));
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    endPos.x = (endPos.x + w) % w;
-    endPos.y = (endPos.y + h) % h;
-
-    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, startPos, ship.hexColor);
-    ship.position = endPos;
-    ship.tail = [];
-    ship.isBlinking = 15;
-    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, endPos, ship.hexColor);
-    ship.blinkTimer = ship.blinkCooldown + (Math.random() - 0.5) * 4000;
+    const positions = ShipBehaviorManager.performBlink(
+      ship,
+      this.targetStar.exists,
+      this.targetStar.position,
+      this.worldWidth,
+      this.worldHeight
+    );
+    
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, positions[0], ship.hexColor);
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, positions[1], ship.hexColor);
   }
 
   private createBlinkParticles(position: Vector2D, color: string) {
@@ -2109,10 +1832,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private wrapRadioText(text: string, maxWidth: number): string[] {
     return TextUtils.wrapText(this.ctx, text, maxWidth);
-  }
-
-  private getShipChatterDelay(): number {
-    return TextUtils.getRandomDelay(this.SHIP_CHATTER_DELAY_RANGE);
   }
 
   private toggleConstellationMode() {
