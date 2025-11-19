@@ -44,6 +44,9 @@ import { ShipBehaviorManager } from './ship-behavior-manager';
 import { GameStateManager } from './game-state-manager';
 import { RadioManager } from './radio-manager';
 import { CollisionManager } from './collision-manager';
+import { RenderingManager } from './rendering-manager';
+import { InputManager, MouseState, ContextMenuState } from './input-manager';
+import { CanvasManager } from './canvas-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -96,13 +99,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private readonly SPEED_INCREMENT_PER_STAR = GAME_CONSTANTS.SPEED_INCREMENT_PER_STAR;
   private readonly MAX_SPEED_BONUS = GAME_CONSTANTS.MAX_SPEED_BONUS;
 
-  private mouse = {
+  private mouse: MouseState = {
     pos: new Vector2D(-100, -100),
     isDown: false,
     orbitRadius: GAME_CONSTANTS.MOUSE_ORBIT_RADIUS,
   };
 
-  public contextMenu = { visible: false, x: 0, y: 0 };
+  public contextMenu: ContextMenuState = { visible: false, x: 0, y: 0 };
   public mobileMenuVisible = signal(false); // Mobile-specific menu
   public mouseInteractionEnabled = signal(true);
   public isMobile = signal(false); // Make it a signal for template access
@@ -362,41 +365,20 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private handleShipTap() {
-    // Check if the tap is on any ship
-    for (const ship of this.ships) {
-      const distance = Vector2D.distance(this.mouse.pos, ship.position);
-      const radius = ship.radius * (1 + ship.z * 0.4); // Account for z-index scaling
-      
-      if (distance < radius) {
-        // Tap is on a ship, increase its speed slightly
-        const speedIncrease = 0.3;
-        ship.velocity.normalize().multiply(ship.velocity.magnitude() + speedIncrease);
-        
-        // Add a visual effect to indicate the speed boost
-        this.createStarExplosion(ship.position, 5);
+    InputManager.handleShipTap(
+      this.mouse.pos,
+      this.ships,
+      this.renderScale,
+      (position: Vector2D) => {
+        this.createStarExplosion(position, 5);
         this.audioService.playSound('launch');
-        return; // Tap handled, don't do anything else
       }
-    }
+    );
   }
 
   private showContextMenu(clientX: number, clientY: number) {
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const relativeX = clientX - rect.left;
-    const relativeY = clientY - rect.top;
-
-    const clampedX = Math.min(
-      Math.max(0, relativeX),
-      rect.width - this.CONTEXT_MENU_WIDTH
-    );
-    const clampedY = Math.min(
-      Math.max(0, relativeY),
-      rect.height - this.CONTEXT_MENU_HEIGHT
-    );
-
-    this.contextMenu.visible = true;
-    this.contextMenu.x = clampedX;
-    this.contextMenu.y = clampedY;
+    this.contextMenu = InputManager.showContextMenu(clientX, clientY, rect, this.contextMenu);
     this.cdr.detectChanges();
   }
 
@@ -439,58 +421,27 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private normalizeControlKey(key: string): ControlKey | null {
-    const normalized = key.toLowerCase();
-    switch (normalized) {
-      case 'arrowup':
-        return 'up';
-      case 'arrowdown':
-        return 'down';
-      case 'arrowleft':
-        return 'left';
-      case 'arrowright':
-        return 'right';
-      case ' ': // Space key returns a single space character
-      case 'space':
-      case 'spacebar':
-        return 'space';
-      case 'r':
-        return 'reload';
-      default:
-        return null;
-    }
+    return InputManager.normalizeControlKey(key);
   }
 
   private toggleShipControl() {
-    if (this.controlledShipId !== null) {
-      const controlledShip = this.ships.find(ship => ship.id === this.controlledShipId);
-      if (controlledShip && controlledShip.state === 'controlled') {
-        controlledShip.state = 'idle';
-      }
-      this.controlledShipId = null;
-      this.activeControlKeys.clear();
-      this.mouseInteractionEnabled.set(this.mouseInteractionBeforeControl);
-      this.updateCursorVisibility();
-      return;
-    }
-
-    const orbitingShips = this.ships.filter(ship => ship.state === 'orbiting');
-    if (orbitingShips.length === 1) {
-      const targetShip = orbitingShips[0];
-      this.controlledShipId = targetShip.id;
-      targetShip.state = 'controlled';
-      targetShip.velocity.multiply(0);
-      targetShip.acceleration.multiply(0);
-      this.mouseInteractionBeforeControl = this.mouseInteractionEnabled();
-      this.mouseInteractionEnabled.set(false);
-      this.updateCursorVisibility();
-    }
+    const result = InputManager.toggleShipControl(
+      this.ships,
+      this.controlledShipId,
+      this.activeControlKeys,
+      this.mouseInteractionEnabled,
+      this.mouseInteractionBeforeControl
+    );
+    this.controlledShipId = result.controlledShipId;
+    this.mouseInteractionBeforeControl = result.mouseInteractionBeforeControl;
+    this.updateCursorVisibility();
   }
 
   private updateCursorVisibility() {
     if (!this.canvasRef) {
       return;
     }
-    this.canvasRef.nativeElement.style.cursor = this.controlledShipId !== null ? 'none' : 'default';
+    InputManager.updateCursorVisibility(this.canvasRef.nativeElement, this.controlledShipId);
   }
 
   private isShipCurrentlyControlled(ship: Ship): boolean {
@@ -498,13 +449,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private startManualReload() {
-    if (this.controlledShipId === null) {
-      return;
-    }
     const controlledShip = this.ships.find(ship => ship.id === this.controlledShipId);
-    if (controlledShip && controlledShip.reloadTimer <= 0 && controlledShip.ammo < controlledShip.maxAmmo) {
-      controlledShip.reloadTimer = controlledShip.reloadDuration;
-    }
+    InputManager.startManualReload(controlledShip);
   }
 
   ngAfterViewInit(): void {
@@ -527,17 +473,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private setupCanvas() {
-    // Mobile check for scaling
-    const detectedIsMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                   (window.innerWidth < 800 && 'ontouchstart' in window);
-    this.isMobile.set(detectedIsMobile);
-    this.renderScale = detectedIsMobile ? 0.6 : 1.0;
-
-    this.canvasRef.nativeElement.width = window.innerWidth;
-    this.canvasRef.nativeElement.height = window.innerHeight;
-
-    this.worldWidth = window.innerWidth / this.renderScale;
-    this.worldHeight = window.innerHeight / this.renderScale;
+    const setup = CanvasManager.setupCanvas(this.canvasRef.nativeElement);
+    this.isMobile.set(setup.isMobile);
+    this.renderScale = setup.renderScale;
+    this.worldWidth = setup.worldWidth;
+    this.worldHeight = setup.worldHeight;
   }
 
   private initGame() {
@@ -547,16 +487,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private createBackgroundStars(count: number) {
-    this.backgroundStars = [];
-    for (let i = 0; i < count; i++) {
-      this.backgroundStars.push({
-        pos: new Vector2D(Math.random() * this.worldWidth, Math.random() * this.worldHeight),
-        radius: Math.random() * 1.5 + 0.5,
-        opacity: Math.random() * 0.7 + 0.1,
-        twinkleSpeed: Math.random() * 0.02,
-        color: Math.random() > 0.9 ? (Math.random() > 0.5 ? 'rgba(173, 216, 230, 0.8)' : 'rgba(255, 255, 224, 0.8)') : 'rgba(255, 255, 255, 0.7)'
-      });
-    }
+    this.backgroundStars = CanvasManager.createBackgroundStars(count, this.worldWidth, this.worldHeight);
   }
 
   private createShips() {
@@ -1103,30 +1034,15 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private applyManualControls(ship: Ship, _deltaTime: number) {
-    const thrust = 0.15;
-    const manualAcceleration = new Vector2D();
+  private applyManualControls(ship: Ship, deltaTime: number) {
+    InputManager.applyManualControls(ship, this.activeControlKeys, deltaTime);
 
-    if (this.activeControlKeys.has('up')) manualAcceleration.y -= thrust;
-    if (this.activeControlKeys.has('down')) manualAcceleration.y += thrust;
-    if (this.activeControlKeys.has('left')) manualAcceleration.x -= thrust;
-    if (this.activeControlKeys.has('right')) manualAcceleration.x += thrust;
-
-    ship.acceleration.add(manualAcceleration);
-    ship.velocity.multiply(0.995);
-
-    const firingPressed = this.activeControlKeys.has('space');
-    if (firingPressed && ship.fireCooldown <= 0 && ship.reloadTimer <= 0) {
-      if (ship.ammo > 0) {
-        this.fireProjectile(ship);
-      } else {
-        this.startManualReload();
-      }
-    }
-
-    if (this.activeControlKeys.has('reload')) {
-      this.startManualReload();
-    }
+    InputManager.handleManualFiring(
+      this.activeControlKeys,
+      ship,
+      () => this.fireProjectile(ship),
+      () => this.startManualReload()
+    );
   }
 
   private performCelebration(ship: Ship) {
@@ -1326,14 +1242,18 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.ctx.fillStyle = '#000000';
     this.ctx.fillRect(0, 0, this.worldWidth, this.worldHeight);
     
-    this.drawBackgroundStars();
-    this.drawNebulas();
-    this.drawWormhole();
-    if (this.targetStar.exists) this.drawTargetStar();
-    this.drawParticles();
-    this.drawAsteroids();
-    this.drawProjectiles();
-    this.drawExplosionParticles();
+    RenderingManager.drawBackgroundStars(this.ctx, this.backgroundStars);
+    RenderingManager.drawNebulas(this.ctx, this.nebulas);
+    if (this.wormhole) {
+      RenderingManager.drawWormhole(this.ctx, this.wormhole);
+    }
+    if (this.targetStar.exists) {
+      RenderingManager.drawTargetStar(this.ctx, this.targetStar);
+    }
+    RenderingManager.drawParticles(this.ctx, this.starParticles, this.targetStar);
+    RenderingManager.drawAsteroids(this.ctx, this.asteroids);
+    RenderingManager.drawProjectiles(this.ctx, this.projectiles);
+    RenderingManager.drawExplosionParticles(this.ctx, this.explosionParticles);
     
     const allEntities = [
       ...this.ships.map(s => ({ ...s, type: 'ship', z: s.z })),
@@ -1342,492 +1262,25 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
     allEntities.forEach(entity => {
       if (entity.type === 'ship') {
-        // Draw tail first (unrotated)
         const ship = entity as Ship;
-        this.ctx.save();
-        let finalAlpha = 1 - (ship.z * -1) * 0.4;
-        if (ship.color === 'Blue' && ship.isBlinking > 0) {
-          finalAlpha *= 1 - (ship.isBlinking / 15);
-        }
-        this.ctx.globalAlpha = finalAlpha;
-        for (let i = 0; i < ship.tail.length; i++) {
-          const pos = ship.tail[i];
-          if (i > 0 && Vector2D.distance(pos, ship.tail[i - 1]) > 100) continue;
-          const r = parseInt(ship.hexColor.slice(1, 3), 16);
-          const g = parseInt(ship.hexColor.slice(3, 5), 16);
-          const b = parseInt(ship.hexColor.slice(5, 7), 16);
-          const currentRadius = ship.radius * (1 + ship.z * 0.4);
-          this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${i / ship.tail.length * 0.5})`;
-          this.ctx.beginPath();
-          this.ctx.arc(pos.x, pos.y, currentRadius * (i / ship.tail.length) * 0.7, 0, Math.PI * 2);
-          this.ctx.fill();
-        }
-        this.ctx.restore();
-
-        // Draw the ship itself
-        this.drawShip(ship);
+        RenderingManager.drawShipTail(this.ctx, ship);
+        RenderingManager.drawShip(this.ctx, ship, this.gameMode);
       }
     });
 
-
-    this.drawScoreTooltips();
-    this.drawRadioBubbles();
-    this.drawCursor();
+    RenderingManager.drawScoreTooltips(this.ctx, this.scoreTooltips);
+    RenderingManager.drawRadioBubbles(this.ctx, this.radioBubbles, this.isMobile());
+    RenderingManager.drawCursor(
+      this.ctx,
+      this.mouse.pos,
+      this.mouse.orbitRadius,
+      this.mouse.isDown,
+      this.mouseInteractionEnabled(),
+      this.controlledShipId,
+      this.ships
+    );
 
     this.ctx.restore();
-  }
-
-  private drawWormhole() {
-    if (!this.wormhole) return;
-    const { entry, exit, life, maxLife } = this.wormhole;
-    this.drawWormholeEnd(entry.position, entry.radius, entry.pulseAngle, life, maxLife);
-    this.drawWormholeEnd(exit.position, exit.radius, exit.pulseAngle, life, maxLife);
-  }
-
-  private drawWormholeEnd(position: Vector2D, radius: number, pulseAngle: number, life: number, maxLife: number) {
-    const fadeDuration = 500;
-    let scale = 1;
-    if (life < fadeDuration) {
-      scale = life / fadeDuration;
-    } else if (maxLife - life < fadeDuration) {
-      scale = (maxLife - life) / fadeDuration;
-    }
-
-    const baseRadius = radius * scale;
-    const pulseEffect = Math.sin(pulseAngle) * 2;
-    const currentRadius = baseRadius + pulseEffect;
-
-    if (currentRadius <= 0) {
-      return;
-    }
-
-    this.ctx.save();
-    this.ctx.translate(position.x, position.y);
-    
-    // Inner void
-    this.ctx.globalAlpha = scale * 0.7;
-    this.ctx.fillStyle = 'black';
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
-    this.ctx.fill();
-
-    // Pulsating outer ring
-    this.ctx.globalAlpha = scale;
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
-    this.ctx.stroke();
-
-    // Subtle glow
-    this.ctx.globalCompositeOperation = 'lighter';
-    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    this.ctx.lineWidth = 4;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, currentRadius + 1, 0, Math.PI * 2);
-    this.ctx.stroke();
-    
-    this.ctx.restore();
-  }
-
-  private drawBackgroundStars() {
-    const now = Date.now();
-    this.backgroundStars.forEach(star => {
-      this.ctx.beginPath();
-      const opacity = star.opacity + Math.sin(now * star.twinkleSpeed) * 0.1;
-      this.ctx.fillStyle = star.color.replace(/[\d\.]+\)$/g, `${opacity})`);
-      this.ctx.arc(star.pos.x, star.pos.y, star.radius, 0, Math.PI * 2);
-      this.ctx.fill();
-    });
-  }
-
-  private drawNebulas() {
-    this.nebulas.forEach(nebula => {
-      const opacity = (nebula.life / nebula.maxLife) * 0.3;
-      this.ctx.save();
-      this.ctx.globalCompositeOperation = 'lighter';
-      this.ctx.globalAlpha = opacity;
-      const grad = this.ctx.createRadialGradient(nebula.position.x, nebula.position.y, 0, nebula.position.x, nebula.position.y, nebula.radius);
-      grad.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
-      grad.addColorStop(0.7, 'rgba(21, 128, 61, 0.3)');
-      grad.addColorStop(1, 'rgba(22, 101, 52, 0)');
-      this.ctx.fillStyle = grad;
-      this.ctx.beginPath();
-      this.ctx.arc(nebula.position.x, nebula.position.y, nebula.radius, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    });
-  }
-
-  private drawTargetStar() {
-    const pulse = Math.sin(this.targetStar.pulseAngle) * 3;
-    const radius = this.targetStar.radius + pulse;
-    const coreRadius = this.targetStar.radius * 0.6 + pulse * 0.8;
-
-    this.ctx.save();
-    this.ctx.globalAlpha = this.targetStar.opacity;
-
-    this.ctx.beginPath();
-    const grad = this.ctx.createRadialGradient(this.targetStar.position.x, this.targetStar.position.y, 0, this.targetStar.position.x, this.targetStar.position.y, radius * 2.5);
-    grad.addColorStop(0, 'rgba(255, 223, 0, 0.8)');
-    grad.addColorStop(0.5, 'rgba(255, 200, 0, 0.4)');
-    grad.addColorStop(1, 'rgba(255, 165, 0, 0)');
-    this.ctx.fillStyle = grad;
-    this.ctx.arc(this.targetStar.position.x, this.targetStar.position.y, radius * 2.5, 0, Math.PI * 2);
-    this.ctx.fill();
-
-    this.ctx.beginPath();
-    this.ctx.fillStyle = 'rgba(255, 255, 224, 1)';
-    this.ctx.arc(this.targetStar.position.x, this.targetStar.position.y, coreRadius, 0, Math.PI * 2);
-    this.ctx.fill();
-
-    this.ctx.restore();
-  }
-  
-  private drawParticles() {
-      this.starParticles.forEach(p => {
-          this.ctx.beginPath();
-          const opacity = (p.life / p.maxLife) * 0.8 * this.targetStar.opacity;
-          this.ctx.fillStyle = p.color.replace(/[\d\.]+\)$/g, `${opacity})`);
-          this.ctx.arc(p.position.x, p.position.y, p.radius, 0, Math.PI * 2);
-          this.ctx.fill();
-      });
-  }
-
-  private drawExplosionParticles() {
-    this.explosionParticles.forEach(p => {
-        this.ctx.save();
-        this.ctx.globalAlpha = p.life / p.maxLife;
-        this.ctx.fillStyle = p.color;
-        this.ctx.beginPath();
-        const currentRadius = p.radius * (p.life / p.maxLife);
-        this.ctx.arc(p.position.x, p.position.y, currentRadius > 0 ? currentRadius : 0, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.restore();
-    });
-  }
-
-  private drawAsteroids() {
-    this.asteroids.forEach(asteroid => {
-      this.ctx.save();
-      this.ctx.translate(asteroid.position.x, asteroid.position.y);
-      this.ctx.rotate(asteroid.rotation);
-      this.ctx.beginPath();
-      this.ctx.moveTo(asteroid.shape[0].x, asteroid.shape[0].y);
-      for (let i = 1; i < asteroid.shape.length; i++) {
-        this.ctx.lineTo(asteroid.shape[i].x, asteroid.shape[i].y);
-      }
-      this.ctx.closePath();
-      this.ctx.strokeStyle = '#a1a1aa';
-      this.ctx.fillStyle = '#3f3f46';
-      this.ctx.lineWidth = 2;
-      this.ctx.fill();
-      this.ctx.stroke();
-      this.ctx.restore();
-    });
-  }
-
-  private drawProjectiles() {
-    this.projectiles.forEach(p => {
-      // Draw tail
-      for (let i = 0; i < p.tail.length; i++) {
-        const pos = p.tail[i];
-        const opacity = (i / p.tail.length) * 0.5;
-        this.ctx.fillStyle = `rgba(255, 215, 0, ${opacity})`; // Gold with opacity
-        this.ctx.beginPath();
-        this.ctx.arc(pos.x, pos.y, 2 * (i / p.tail.length), 0, Math.PI * 2); // Shrinking radius
-        this.ctx.fill();
-      }
-  
-      // Draw core with glow
-      this.ctx.save();
-      this.ctx.fillStyle = p.color;
-      this.ctx.shadowColor = p.color;
-      this.ctx.shadowBlur = 10;
-      this.ctx.beginPath();
-      this.ctx.arc(p.position.x, p.position.y, 3, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    });
-  }
-
-  private drawShip(ship: Ship) {
-    const scale = 1 + ship.z * 0.4;
-    const currentRadius = ship.radius * scale;
-    let finalAlpha = 1 - (ship.z * -1) * 0.4;
-  
-    // Shadow (unrotated)
-    if (ship.z > 0.1) {
-      const shadowAlpha = ship.z * 0.3;
-      const shadowRadiusX = currentRadius * 1.2;
-      const shadowRadiusY = currentRadius * 0.6;
-      const shadowOffsetX = ship.z * currentRadius * 0.8;
-      const shadowOffsetY = ship.z * currentRadius * 0.8;
-      this.ctx.save();
-      this.ctx.globalAlpha = shadowAlpha;
-      this.ctx.fillStyle = 'black';
-      this.ctx.filter = `blur(${ship.z * 10}px)`;
-      this.ctx.beginPath();
-      this.ctx.ellipse(ship.position.x + shadowOffsetX, ship.position.y + shadowOffsetY, shadowRadiusX, shadowRadiusY, 0, 0, Math.PI * 2);
-      this.ctx.fill();
-      this.ctx.restore();
-    }
-  
-    // Main ship body (rotated)
-    this.ctx.save();
-    if (ship.color === 'Blue' && ship.isBlinking > 0) {
-      finalAlpha *= 1 - (ship.isBlinking / 15);
-    }
-    this.ctx.globalAlpha = finalAlpha;
-  
-    this.ctx.translate(ship.position.x, ship.position.y);
-    this.ctx.rotate(ship.rotation);
-  
-    // Glow
-    let glowMultiplier = (ship.color === 'Red' && ship.afterburnerTimer > 0) ? 1.5 : 1;
-    const grad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, currentRadius * 2.5 * glowMultiplier);
-    grad.addColorStop(0, `${ship.hexColor}FF`);
-    grad.addColorStop(0.5, `${ship.hexColor}80`);
-    grad.addColorStop(1, `${ship.hexColor}00`);
-    this.ctx.fillStyle = grad;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, currentRadius * 2.5 * glowMultiplier, 0, Math.PI * 2);
-    this.ctx.fill();
-  
-    // Core
-    this.ctx.fillStyle = ship.hexColor;
-    this.ctx.beginPath();
-    this.ctx.arc(0, 0, currentRadius * 0.8, 0, Math.PI * 2);
-    this.ctx.fill();
-  
-    // Front Indicator (cockpit)
-    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    this.ctx.beginPath();
-    this.ctx.moveTo(currentRadius * 0.9, 0);
-    this.ctx.lineTo(currentRadius * 0.5, -currentRadius * 0.4);
-    this.ctx.lineTo(currentRadius * 0.5, currentRadius * 0.4);
-    this.ctx.closePath();
-    this.ctx.fill();
-  
-    this.ctx.restore(); // Restore from translation and rotation
-  
-    // Ammo/Reload Indicator (unrotated)
-    if (this.gameMode === 'asteroid_event' && ship.state !== 'paralyzed') {
-      const indicatorY = ship.position.y + currentRadius + 10;
-      if (ship.reloadTimer > 0) {
-        // Draw reload bar
-        const reloadProgress = 1 - (ship.reloadTimer / ship.reloadDuration);
-        const barWidth = 20;
-        const barHeight = 4;
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-        this.ctx.fillRect(ship.position.x - barWidth / 2, indicatorY - barHeight/2, barWidth, barHeight);
-        this.ctx.fillStyle = '#4ade80'; // Green
-        this.ctx.fillRect(ship.position.x - barWidth / 2, indicatorY - barHeight/2, barWidth * reloadProgress, barHeight);
-      } else {
-        // Draw ammo dots
-        const dotRadius = 1.5;
-        const spacing = 5;
-        const totalWidth = ship.maxAmmo * spacing - spacing;
-        const startX = ship.position.x - totalWidth / 2;
-  
-        for (let i = 0; i < ship.maxAmmo; i++) {
-          this.ctx.fillStyle = i < ship.ammo ? ship.hexColor : 'rgba(255, 255, 255, 0.2)';
-          this.ctx.beginPath();
-          this.ctx.arc(startX + i * spacing, indicatorY, dotRadius, 0, Math.PI * 2);
-          this.ctx.fill();
-        }
-      }
-    }
-  
-    // Paralyzed effect (unrotated)
-    if (ship.state === 'paralyzed') {
-      this.ctx.save();
-      this.ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 50) * 0.2;
-      this.ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + Math.random() * 0.4})`;
-      this.ctx.lineWidth = 1.5;
-      this.ctx.beginPath();
-      const arcCount = 3;
-      for (let i = 0; i < arcCount; i++) {
-        const startAngle = Math.random() * Math.PI * 2;
-        const endAngle = startAngle + Math.PI * 0.5;
-        this.ctx.arc(ship.position.x, ship.position.y, currentRadius * (1.2 + Math.random() * 0.4), startAngle, endAngle);
-      }
-      this.ctx.stroke();
-      this.ctx.restore();
-    }
-  }
-
-  private drawRadioBubbles() {
-    const fadeDuration = 30;
-    this.radioBubbles.forEach(bubble => {
-      let opacity = 1;
-      if (bubble.life < fadeDuration) {
-        opacity = bubble.life / fadeDuration;
-      } else if (bubble.maxLife - bubble.life < fadeDuration) {
-        opacity = (bubble.maxLife - bubble.life) / fadeDuration;
-      }
-
-      this.ctx.save();
-      this.ctx.globalAlpha = opacity;
-      const fontSize = this.isMobile() ? 16 : 14;
-      const font = `bold ${fontSize}px "Courier New", monospace`;
-      this.ctx.font = font;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-
-      const lineHeight = this.isMobile() ? 22 : 18;
-      const padding = this.isMobile() ? 14 : 12;
-      const lines = bubble.textLines.length > 0 ? bubble.textLines : [''];
-      const textWidth = Math.max(...lines.map(line => this.ctx.measureText(line).width));
-      const boxWidth = textWidth + padding * 2;
-      const boxHeight = lines.length * lineHeight + padding * 2;
-      const boxX = bubble.position.x - boxWidth / 2;
-      const boxY = bubble.position.y - boxHeight;
-
-      this.ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
-      this.ctx.strokeStyle = `${bubble.color}CC`;
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      this.ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10);
-      this.ctx.fill();
-      this.ctx.stroke();
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(bubble.position.x - 8, boxY + boxHeight);
-      this.ctx.lineTo(bubble.position.x, boxY + boxHeight + 10);
-      this.ctx.lineTo(bubble.position.x + 8, boxY + boxHeight);
-      this.ctx.closePath();
-      this.ctx.fill();
-      this.ctx.stroke();
-
-      this.ctx.fillStyle = '#F9FAFB';
-      lines.forEach((line, index) => {
-        const textY = boxY + padding + lineHeight * index + lineHeight / 2;
-        this.ctx.fillText(line, bubble.position.x, textY);
-      });
-
-      this.ctx.restore();
-    });
-  }
-
-  private drawScoreTooltips() {
-    this.scoreTooltips.forEach(tooltip => {
-        const fadeDuration = 30;
-        let opacity = 1;
-        if (tooltip.life < fadeDuration) opacity = tooltip.life / fadeDuration;
-        else if (tooltip.maxLife - tooltip.life < fadeDuration) opacity = (tooltip.maxLife - tooltip.life) / fadeDuration;
-        
-        this.ctx.save();
-        this.ctx.globalAlpha = opacity;
-        const text = `★ ${tooltip.text}`;
-        this.ctx.font = 'bold 16px "Courier New", monospace';
-        const textMetrics = this.ctx.measureText(text);
-        const padding = 10;
-        const boxWidth = textMetrics.width + padding * 2;
-        const boxHeight = 30;
-        const boxX = tooltip.position.x - boxWidth / 2;
-        const boxY = tooltip.position.y - boxHeight;
-
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.lineWidth = 1.5;
-        this.ctx.beginPath();
-        this.ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
-        this.ctx.fill();
-        this.ctx.stroke();
-
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(text, tooltip.position.x, boxY + boxHeight / 2);
-        this.ctx.restore();
-    });
-  }
-
-  private drawCursor() {
-    // DOCUMENTATION: This method is wrapped in a try-catch block because 'createRadialGradient' 
-    // and other canvas methods throw a 'NotSupportedError' if any coordinate is non-finite (NaN or Infinity).
-    // This can happen during initialization or if the mouse position hasn't been set yet.
-    // If this method throws, it breaks the entire game loop (draw() stops executing), causing
-    // all entities (ships, stars) to disappear from the screen.
-    try {
-      this.ctx.save();
-      
-      // Safety check: Ensure mouse coordinates are valid numbers before attempting to draw
-      if (!Number.isFinite(this.mouse.pos.x) || !Number.isFinite(this.mouse.pos.y)) {
-        this.ctx.restore();
-        return;
-      }
-
-      if (this.controlledShipId !== null) {
-        this.ctx.restore();
-        return;
-      }
-
-      if (this.mouseInteractionEnabled()) {
-        const isCharging = this.mouse.isDown && this.ships.some(c => c.state === 'orbiting');
-        const pulse = Math.sin(Date.now() / 150) * 1.5;
-        const coreRadius = 6 + pulse;
-        
-        const glowRadius = 25 + pulse * 2;
-        const glowGrad = this.ctx.createRadialGradient(this.mouse.pos.x, this.mouse.pos.y, coreRadius, this.mouse.pos.x, this.mouse.pos.y, glowRadius);
-        glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-        glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        this.ctx.fillStyle = glowGrad;
-        this.ctx.beginPath();
-        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, glowRadius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        this.ctx.beginPath();
-        this.ctx.setLineDash([8, 8]);
-        this.ctx.strokeStyle = isCharging ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.4)';
-        this.ctx.lineWidth = isCharging ? 2 : 1.5;
-        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, this.mouse.orbitRadius, 0, Math.PI * 2);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
-
-        this.ctx.beginPath();
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.arc(this.mouse.pos.x, this.mouse.pos.y, coreRadius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-      } else {
-        const cursorX = this.mouse.pos.x;
-        const cursorY = this.mouse.pos.y;
-
-        const coreRadius = 8;
-        const glowRadius = 25;
-        
-        // Accretion disk glow (purple/white) to make it visible on black background
-        const glowGradient = this.ctx.createRadialGradient(cursorX, cursorY, coreRadius, cursorX, cursorY, glowRadius);
-        glowGradient.addColorStop(0, 'rgba(147, 51, 234, 0.6)'); // Purple-600
-        glowGradient.addColorStop(0.5, 'rgba(192, 132, 252, 0.3)'); // Purple-400
-        glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-        this.ctx.beginPath();
-        this.ctx.fillStyle = glowGradient;
-        this.ctx.arc(cursorX, cursorY, glowRadius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Event horizon (Black core)
-        this.ctx.beginPath();
-        this.ctx.fillStyle = '#000000';
-        this.ctx.arc(cursorX, cursorY, coreRadius, 0, Math.PI * 2);
-        this.ctx.fill();
-
-        // Thin accretion ring
-        this.ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)'; // Purple-500
-        this.ctx.lineWidth = 1.5;
-        this.ctx.beginPath();
-        this.ctx.arc(cursorX, cursorY, coreRadius + 1, 0, Math.PI * 2);
-        this.ctx.stroke();
-      }
-      this.ctx.restore();
-    } catch (e) {
-      console.error('Error drawing cursor:', e);
-      // Ensure context is restored even if drawing fails
-      try { this.ctx.restore(); } catch {}
-    }
   }
 
   private wrapRadioText(text: string, maxWidth: number): string[] {
