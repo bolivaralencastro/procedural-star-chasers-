@@ -4,6 +4,8 @@
   "description": "An interactive procedural star-chasing game with dynamic gameplay and AI-controlled ships",
   "start_url": "/",
   "display": "fullscreen",
+  "scope": "/",
+  "prefer_related_applications": false,
   "orientation": "landscape",
   "background_color": "#000000",
   "theme_color": "#1a1a2e",
