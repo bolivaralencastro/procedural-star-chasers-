@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, effect, ViewChild } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { ParticleClockComponent } from './components/particle-clock/particle-clock.component';
+import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AudioService } from './services/audio.service';
 import { ScreenWakeLockService } from './services/screen-wake-lock.service';
@@ -16,12 +17,14 @@ export interface Score {
   templateUrl: './app.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StarChasersComponent, ParticleClockComponent, CommonModule],
+  imports: [StarChasersComponent, ParticleClockComponent, AboutDialogComponent, CommonModule],
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);
   isWakeLockEnabled = signal(false);
   isMobile = signal(false);
+  
+  @ViewChild(AboutDialogComponent) aboutDialog?: AboutDialogComponent;
   
   private platformId = inject(PLATFORM_ID);
   audioService = inject(AudioService);
@@ -101,5 +104,9 @@ export class AppComponent implements OnDestroy {
 
   toggleWakeLock(): void {
     this.screenWakeLockService.toggleWakeLock();
+  }
+
+  openAbout(): void {
+    this.aboutDialog?.open();
   }
 }
