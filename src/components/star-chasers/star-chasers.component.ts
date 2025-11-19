@@ -41,6 +41,7 @@ import { ProjectileManager } from './projectile-manager';
 import { ParticleEffectsManager } from './particle-effects-manager';
 import { WormholeManager } from './wormhole-manager';
 import { ShipBehaviorManager } from './ship-behavior-manager';
+import { GameStateManager } from './game-state-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -805,9 +806,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private checkForAsteroidEvent() {
-    if (this.gameMode !== 'normal' || this.asteroids.length > 0) return;
-    const allHaveEnoughStars = this.ships.every(s => s.score >= this.eventTriggerScore);
-    if (allHaveEnoughStars && Math.random() < 0.25) {
+    if (GameStateManager.shouldTriggerAsteroidEvent(this.gameMode, this.asteroids.length, this.ships, this.eventTriggerScore)) {
         this.startAsteroidEvent();
     }
   }
@@ -841,17 +840,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
     
     if (this.targetStar.exists) {
-        this.targetStar.pulseAngle += 0.05;
-        if (this.targetStar.isDespawning) {
-            this.targetStar.opacity -= 0.02;
-            if (this.targetStar.opacity <= 0) {
-                this.targetStar.exists = false;
-                this.scheduleNextStar();
-            }
-        } else if (this.targetStar.opacity < 1) {
-            this.targetStar.opacity += 0.02;
-        }
-        if (!this.targetStar.isDespawning && Date.now() > this.targetStar.spawnTime + this.targetStar.lifetime) {
+        GameStateManager.updateTargetStar(this.targetStar, this.ships, this.worldWidth, this.worldHeight);
+        
+        if (this.targetStar.isDespawning && !this.targetStar.exists) {
+            this.scheduleNextStar();
+        } else if (!this.targetStar.isDespawning && Date.now() > this.targetStar.spawnTime + this.targetStar.lifetime) {
             this.targetStar.isDespawning = true;
             this.ships.forEach(c => {
               if (this.isShipCurrentlyControlled(c)) {
@@ -861,35 +854,6 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
             });
         }
 
-        const totalRepulsion = new Vector2D();
-        const fleeRadius = 300;
-        this.ships.forEach(ship => {
-            const dist = Vector2D.distance(this.targetStar.position, ship.position);
-            if (dist > 0 && dist < fleeRadius) {
-                const repulsion = this.targetStar.position.clone().subtract(ship.position);
-                const strength = (1 - dist / fleeRadius) * 0.2;
-                repulsion.normalize().multiply(strength);
-                totalRepulsion.add(repulsion);
-            }
-        });
-        this.targetStar.acceleration.add(totalRepulsion);
-
-        const STAR_MAX_SPEED = 0.6;
-        this.targetStar.velocity.add(this.targetStar.acceleration);
-        this.targetStar.velocity.multiply(0.98);
-        if (this.targetStar.velocity.magnitude() > STAR_MAX_SPEED) {
-            this.targetStar.velocity.normalize().multiply(STAR_MAX_SPEED);
-        }
-        this.targetStar.position.add(this.targetStar.velocity);
-        this.targetStar.acceleration.multiply(0);
-        
-        const w = this.worldWidth;
-        const h = this.worldHeight;
-        if (this.targetStar.position.x < 0) this.targetStar.position.x = w;
-        if (this.targetStar.position.x > w) this.targetStar.position.x = 0;
-        if (this.targetStar.position.y < 0) this.targetStar.position.y = h;
-        if (this.targetStar.position.y > h) this.targetStar.position.y = 0;
-
         if (!this.targetStar.isDespawning && Math.random() < 0.5) {
             this.spawnStarParticle();
         }
@@ -897,23 +861,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private spawnTargetStar() {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    let validPosition = false;
-    while(!validPosition) {
-        this.targetStar.position = new Vector2D(w * 0.1 + Math.random() * w * 0.8, h * 0.1 + Math.random() * h * 0.8);
-        const tooClose = this.ships.some(c => Vector2D.distance(this.targetStar.position, c.position) < 150);
-        if (!tooClose) {
-            validPosition = true;
-        }
-    }
-    this.targetStar.exists = true;
-    this.targetStar.isDespawning = false;
-    this.targetStar.opacity = 0;
-    this.targetStar.pulseAngle = 0;
-    this.targetStar.velocity = new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiply(0.3);
-    this.targetStar.spawnTime = Date.now();
-    this.targetStar.lifetime = 12000 + Math.random() * 6000;
+    GameStateManager.spawnTargetStar(this.targetStar, this.ships, this.worldWidth, this.worldHeight);
     this.starParticles = [];
     this.ships.forEach(c => {
       if (this.isShipCurrentlyControlled(c)) {
@@ -924,18 +872,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private scheduleNextStar() {
-    const delay = 5000 + Math.random() * 10000;
-    this.nextStarSpawnTime = Date.now() + delay;
+    this.nextStarSpawnTime = GameStateManager.scheduleNextStar();
   }
 
   private updateNebulas() {
-    for (let i = this.nebulas.length - 1; i >= 0; i--) {
-      const nebula = this.nebulas[i];
-      nebula.life--;
-      if (nebula.life <= 0) {
-        this.nebulas.splice(i, 1);
-      }
-    }
+    GameStateManager.updateNebulas(this.nebulas);
   }
 
   private switchPersonality(ship: Ship) {
@@ -1292,7 +1233,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private createNebula(position: Vector2D) {
-    this.nebulas.push({ position, radius: 120, life: 600, maxLife: 600 });
+    GameStateManager.createNebula(this.nebulas, position);
   }
   
   private createScoreTooltip(ship: Ship) {
