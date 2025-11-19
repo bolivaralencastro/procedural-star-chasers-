@@ -47,6 +47,9 @@ import { CollisionManager } from './collision-manager';
 import { RenderingManager } from './rendering-manager';
 import { InputManager, MouseState, ContextMenuState } from './input-manager';
 import { CanvasManager } from './canvas-manager';
+import { ShipUpdateManager } from './ship-update-manager';
+import { StarEventManager } from './star-event-manager';
+import { EventHandlersManager } from './event-handlers-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -671,21 +674,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private startAsteroidEvent() {
-      this.gameMode = 'asteroid_event';
-      const count = 2 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < count; i++) {
-          this.spawnAsteroid('large');
+    this.gameMode = 'asteroid_event';
+    StarEventManager.startAsteroidEvent(
+      this.ships,
+      {
+        spawnAsteroid: this.spawnAsteroid.bind(this),
+        enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
+        getRandomActiveShip: this.getRandomActiveShip.bind(this),
+        isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
       }
-      this.ships.forEach(s => {
-        if (this.isShipCurrentlyControlled(s)) {
-          return;
-        }
-        s.state = 'idle';
-      }); // Reset state for cooperative mode
-      const announcer = this.getRandomActiveShip();
-      if (announcer) {
-        this.enqueueRadioMessage(announcer, 'meteor_event');
-      }
+    );
   }
 
   private endAsteroidEvent() {
@@ -747,290 +745,48 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
   
   private updateShip(ship: Ship) {
-    const deltaTime = 16.67;
-    ship.personalityTimer -= deltaTime;
-    if (ship.personalityTimer <= 0 && ship.state === 'idle') {
-      this.switchPersonality(ship);
-    }
+    ShipUpdateManager.updateShip(
+      ship,
+      {
+        ships: this.ships,
+        asteroids: this.asteroids,
+        targetStar: this.targetStar,
+        nebulas: this.nebulas,
+        mouse: this.mouse,
+        mouseInteractionEnabled: this.mouseInteractionEnabled(),
+        gameMode: this.gameMode,
+        worldWidth: this.worldWidth,
+        worldHeight: this.worldHeight,
+        formationAssignments: this.formationAssignments,
+        controlledShipId: this.controlledShipId,
+        explosionParticles: this.explosionParticles,
+        activeControlKeys: this.activeControlKeys,
+      },
+      {
+        switchPersonality: this.switchPersonality.bind(this),
+        applyPersonalityBehaviors: this.applyPersonalityBehaviors.bind(this),
+        performBlink: this.performBlink.bind(this),
+        performCelebration: this.performCelebration.bind(this),
+        isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
+        fireProjectile: this.fireProjectile.bind(this),
+        createAfterburnerParticle: this.createAfterburnerParticle.bind(this),
+        createStarExplosion: this.createStarExplosion.bind(this),
+        enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
+        applyManualControls: this.applyManualControls.bind(this),
+        startManualReload: this.startManualReload.bind(this),
+      },
+      {
+        lerp: this.lerp.bind(this),
+        normalizeAngle: this.normalizeAngle.bind(this),
+        lerpAngle: this.lerpAngle.bind(this),
+      },
+      this.audioService
+    );
 
-    ship.zMoveTimer -= deltaTime;
-    if (ship.zMoveTimer <= 0) {
-        ship.zVelocity = (Math.random() - 0.5) * 0.03;
-        ship.zMoveTimer = 7000 + Math.random() * 8000;
-    }
-    ship.z += ship.zVelocity;
-    ship.zVelocity *= 0.995;
-    if (ship.z > 1) { ship.z = 1; ship.zVelocity *= -1; }
-    if (ship.z < -1) { ship.z = -1; ship.zVelocity *= -1; }
-
-    if (ship.isBlinking > 0) ship.isBlinking--;
-    if (ship.fireCooldown > 0) ship.fireCooldown -= deltaTime;
-
-    this.updateReloadTimer(ship, deltaTime);
-
-    if (ship.color === 'Blue') {
-      ship.blinkTimer -= deltaTime;
-      if (ship.blinkTimer <= 0 && (ship.state === 'idle' || ship.state === 'hunting')) {
-        this.performBlink(ship);
-      }
-    }
-    if (ship.color === 'Red' && ship.afterburnerTimer > 0) {
-      ship.afterburnerTimer--;
-      const afterburnerThrust = ship.velocity.clone().normalize().multiply(0.3);
-      ship.acceleration.add(afterburnerThrust);
-      if (Math.random() < 0.8) this.createAfterburnerParticle(ship);
-    }
-    
-    let asteroidTarget: Asteroid | null = null;
-    let predictedAsteroidPosition: Vector2D | null = null;
-    // Cooperative Mode Logic
-    if (ship.state === 'controlled') {
-      this.applyManualControls(ship, deltaTime);
-    } else if (this.gameMode === 'asteroid_event') {
-      if (ship.state === 'paralyzed') {
-        ship.paralyzeTimer -= deltaTime;
-        if (ship.paralyzeTimer <= 0) {
-          ship.state = this.isShipCurrentlyControlled(ship) ? 'controlled' : 'idle';
-        }
-      } else if (ship.state !== 'orbiting' && ship.state !== 'launched') {
-        let target: Vector2D | null = null;
-        let isRescuing = false;
-        if (ship.reloadTimer <= 0 && ship.ammo <= 0) {
-          ship.reloadTimer = ship.reloadDuration;
-        }
-  
-        // Priority 1: Rescue paralyzed allies
-        const paralyzedAlly = this.ships.find(s => s.id !== ship.id && s.state === 'paralyzed');
-        if (paralyzedAlly) {
-          target = paralyzedAlly.position;
-          isRescuing = true;
-          const dist = Vector2D.distance(ship.position, paralyzedAlly.position);
-          if (dist < ship.radius + paralyzedAlly.radius) {
-            if (ship.score > 0) {
-              ship.score--;
-              paralyzedAlly.state = this.isShipCurrentlyControlled(paralyzedAlly) ? 'controlled' : 'idle';
-              paralyzedAlly.paralyzeTimer = 0;
-              this.createStarExplosion(ship.position, 20);
-              this.audioService.playSound('rescue');
-              this.enqueueRadioMessage(paralyzedAlly, 'rescue');
-            }
-          }
-        } else if (this.asteroids.length > 0) {
-          // Priority 2: Engage asteroids
-          asteroidTarget = this.asteroids.reduce((prev, curr) => {
-            return Vector2D.distance(ship.position, curr.position) < Vector2D.distance(ship.position, prev.position) ? curr : prev;
-          });
-          
-          if (asteroidTarget) {
-            // Analytical solution for interception point
-            const projectileBaseSpeed = 8;
-            const S_rel = asteroidTarget.position.clone().subtract(ship.position);
-            const V_rel = asteroidTarget.velocity.clone().subtract(ship.velocity.clone().multiply(0.5));
-            
-            const a = (V_rel.x * V_rel.x + V_rel.y * V_rel.y) - (projectileBaseSpeed * projectileBaseSpeed);
-            const b = 2 * (V_rel.x * S_rel.x + V_rel.y * S_rel.y);
-            const c = S_rel.x * S_rel.x + S_rel.y * S_rel.y;
-          
-            const discriminant = b * b - 4 * a * c;
-          
-            let timeToIntercept = -1;
-            if (discriminant >= 0) {
-              const t1 = (-b + Math.sqrt(discriminant)) / (2 * a);
-              const t2 = (-b - Math.sqrt(discriminant)) / (2 * a);
-              
-              if (t1 > 0 && t2 > 0) {
-                timeToIntercept = Math.min(t1, t2);
-              } else {
-                timeToIntercept = Math.max(t1, t2);
-              }
-            }
-          
-            if (timeToIntercept > 0) {
-              predictedAsteroidPosition = asteroidTarget.position.clone().add(asteroidTarget.velocity.clone().multiply(timeToIntercept));
-            } else {
-              predictedAsteroidPosition = asteroidTarget.position.clone();
-            }
-          }
-  
-          // Calculate strategic position (strafing)
-          if(asteroidTarget) {
-            const safeDistance = 200;
-            const predictionTime = 30; // frames
-            const futureAsteroidPos = asteroidTarget.position.clone().add(asteroidTarget.velocity.clone().multiply(predictionTime));
-            const perpendicular = new Vector2D(-asteroidTarget.velocity.y, asteroidTarget.velocity.x).normalize();
-            
-            const pos1 = futureAsteroidPos.clone().add(perpendicular.clone().multiply(safeDistance));
-            const pos2 = futureAsteroidPos.clone().subtract(perpendicular.clone().multiply(safeDistance));
-            
-            target = Vector2D.distance(ship.position, pos1) < Vector2D.distance(ship.position, pos2) ? pos1 : pos2;
-          }
-        }
-  
-        // Apply seeking force towards the calculated target
-        if (target) {
-          const direction = target.clone().subtract(ship.position).normalize();
-          ship.acceleration.add(direction.multiply(0.08));
-        }
-  
-        // Apply avoidance force for all nearby asteroids
-        const avoidanceRadius = 150;
-        this.asteroids.forEach(asteroid => {
-          const dist = Vector2D.distance(ship.position, asteroid.position);
-          if (dist > 0 && dist < avoidanceRadius) {
-            const repulsion = ship.position.clone().subtract(asteroid.position);
-            const strength = (1 - dist / avoidanceRadius) * 0.4;
-            repulsion.normalize().multiply(strength);
-            ship.acceleration.add(repulsion);
-          }
-        });
-  
-        // Firing logic
-        if (!isRescuing && ship.fireCooldown <= 0 && asteroidTarget && predictedAsteroidPosition) {
-          const distanceToTarget = Vector2D.distance(ship.position, asteroidTarget.position);
-          const angleToTarget = Math.atan2(predictedAsteroidPosition.y - ship.position.y, predictedAsteroidPosition.x - ship.position.x);
-          const angleDifference = Math.abs(this.normalizeAngle(ship.rotation - angleToTarget));
-          const firingArc = Math.PI / 12; // 15 degrees
-
-          if (distanceToTarget < 400 && angleDifference < firingArc) { // Only fire when in range and aimed
-              if (ship.ammo > 0 && ship.reloadTimer <= 0) {
-                this.fireProjectile(ship);
-              } else if (ship.ammo <= 0) {
-                  this.audioService.playSound('empty');
-                  ship.fireCooldown = 500;
-              }
-          }
-        }
-      }
-    } else { // Normal Mode Logic
-      switch (ship.state) {
-          case 'idle': this.applyPersonalityBehaviors(ship); break;
-          case 'hunting':
-              if (this.targetStar.exists && !this.targetStar.isDespawning) {
-                  const direction = this.targetStar.position.clone().subtract(ship.position).normalize();
-                  let huntStrength = 0.05;
-                  if (ship.color === 'Red') huntStrength = 0.07;
-                  ship.acceleration.add(direction.multiply(huntStrength));
-              }
-              break;
-          case 'celebrating':
-              this.performCelebration(ship);
-              ship.celebrationTimer -= deltaTime;
-              if(ship.celebrationTimer <= 0 && !this.isShipCurrentlyControlled(ship)) ship.state = 'idle';
-              break;
-      }
-    }
-
-    // Shared State Logic (Orbiting, Launched, Interaction)
-    if (ship.state === 'orbiting') {
-        if (this.mouse.isDown && this.mouseInteractionEnabled()) {
-            ship.orbitalSpeed = Math.min(0.3, ship.orbitalSpeed + 0.003);
-        } else {
-            ship.orbitalSpeed = Math.max(0.05, ship.orbitalSpeed - 0.005);
-        }
-        ship.orbitAngle += ship.orbitalSpeed;
-        ship.position.x = this.mouse.pos.x + this.mouse.orbitRadius * Math.cos(ship.orbitAngle);
-        ship.position.y = this.mouse.pos.y + this.mouse.orbitRadius * Math.sin(ship.orbitAngle);
-        ship.velocity = new Vector2D();
-    } else if (ship.state === 'launched') {
-        ship.velocity.multiply(0.98); // Friction
-        const returnSpeed = this.gameMode === 'normal' && this.targetStar.exists ? 1.5 : 0.8;
-        if (ship.velocity.magnitude() < returnSpeed) {
-            ship.state = (this.gameMode === 'normal' && this.targetStar.exists) ? 'hunting' : 'idle';
-        }
-    } else if (ship.state === 'forming') {
-      const target = this.formationAssignments.get(ship.id);
-      if (target) {
-        const dir = target.clone().subtract(ship.position);
-        const dist = dir.magnitude();
-        
-        if (dist > 5) {
-          dir.normalize().multiply(0.5); // Move speed
-          ship.velocity.add(dir);
-          ship.velocity.multiply(0.9); // Damping
-        } else {
-          ship.velocity.multiply(0.5); // Slow down when close
-          ship.position.x = target.x;
-          ship.position.y = target.y;
-        }
-      }
-    }
-
-    if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed' && ship.state !== 'controlled') {
-      if (this.mouseInteractionEnabled() && ship.state !== 'launched') {
-        const distToMouse = Vector2D.distance(ship.position, this.mouse.pos);
-        if (distToMouse < this.mouse.orbitRadius) {
-          ship.state = 'orbiting';
-          ship.orbitAngle = Math.atan2(ship.position.y - this.mouse.pos.y, ship.position.x - this.mouse.pos.x);
-        } else if (distToMouse < this.mouse.orbitRadius * 4) {
-          const pull = this.mouse.pos.clone().subtract(ship.position).normalize().multiply(200 / (distToMouse * distToMouse));
-          ship.acceleration.add(pull);
-        }
-      } else if (!this.mouseInteractionEnabled()) {
-        const distToMouse = Vector2D.distance(ship.position, this.mouse.pos);
-        const repulsionRadius = this.mouse.orbitRadius * 4;
-        if (distToMouse > 0 && distToMouse < repulsionRadius) {
-          const push = ship.position.clone().subtract(this.mouse.pos).normalize().multiply((1 - distToMouse / repulsionRadius) * 0.4);
-          ship.acceleration.add(push);
-        }
-      }
-    }
-
-    if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed') {
-        ship.velocity.add(ship.acceleration);
-        this.nebulas.forEach(nebula => {
-          if (Vector2D.distance(ship.position, nebula.position) < nebula.radius) ship.velocity.multiply(0.96);
-        });
-        if (ship.state !== 'launched') {
-            let personalitySpeedMod = 1.0;
-            if (ship.personality === 'aggressive') personalitySpeedMod = 1.15;
-            if (ship.personality === 'timid') personalitySpeedMod = 0.9;
-            const baseMaxSpeed = (this.gameMode === 'normal' && ship.state === 'hunting') ? 2.5 : 1.5;
-            const maxSpeed = (baseMaxSpeed + ship.speedBonus) * personalitySpeedMod;
-            if (ship.velocity.magnitude() > maxSpeed) ship.velocity.normalize().multiply(maxSpeed);
-        }
-        ship.position.add(ship.velocity);
-        ship.acceleration.multiply(0);
-    }
-    
-    // Rotation logic
-    if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed') {
-      if (this.gameMode === 'asteroid_event' && asteroidTarget && predictedAsteroidPosition) {
-        const targetAngle = Math.atan2(predictedAsteroidPosition.y - ship.position.y, predictedAsteroidPosition.x - ship.position.x);
-        ship.rotation = this.lerpAngle(ship.rotation, targetAngle, ship.rotationSpeed);
-      } else if (ship.velocity.magnitude() > 0.1) {
-        const targetAngle = Math.atan2(ship.velocity.y, ship.velocity.x);
-        ship.rotation = this.lerpAngle(ship.rotation, targetAngle, 0.15);
-      }
-    }
-
-
-    if (this.gameMode === 'normal' && this.targetStar.exists && !this.targetStar.isDespawning && ship.state !== 'orbiting' && Vector2D.distance(ship.position, this.targetStar.position) < ship.radius + this.targetStar.radius) {
-        this.captureStar(ship);
-    }
-    
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    let wrapped = false;
-    if (ship.position.x < 0) { ship.position.x = w; wrapped = true; }
-    if (ship.position.x > w) { ship.position.x = 0; wrapped = true; }
-    if (ship.position.y < 0) { ship.position.y = h; wrapped = true; }
-    if (ship.position.y > h) { ship.position.y = 0; wrapped = true; }
-    
-    if (wrapped) ship.tail = [];
-    else {
-      ship.tail.push(ship.position.clone());
-      if (ship.tail.length > this.TAIL_LENGTH) ship.tail.shift();
-    }
-  }
-
-  private updateReloadTimer(ship: Ship, deltaTime: number) {
-    if (ship.reloadTimer > 0) {
-      ship.reloadTimer -= deltaTime;
-      if (ship.reloadTimer <= 0) {
-        ship.ammo = ship.maxAmmo;
-        ship.reloadTimer = 0;
-        this.audioService.playSound('reload');
-      }
+    // Check for star capture
+    if (this.gameMode === 'normal' && this.targetStar.exists && !this.targetStar.isDespawning && 
+        ship.state !== 'orbiting' && Vector2D.distance(ship.position, this.targetStar.position) < ship.radius + this.targetStar.radius) {
+      this.captureStar(ship);
     }
   }
 
@@ -1050,30 +806,27 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private captureStar(winner: Ship) {
-    winner.score++;
-    winner.speedBonus = Math.min(winner.speedBonus + this.SPEED_INCREMENT_PER_STAR, this.MAX_SPEED_BONUS);
-    
-    this.createStarExplosion(this.targetStar.position.clone());
-    this.audioService.playSound('blink');
-
-    if (winner.color === 'Green') {
-      this.createNebula(this.targetStar.position.clone());
-    }
-
-    this.targetStar.exists = false;
-    this.starParticles = [];
-    if (!this.isShipCurrentlyControlled(winner)) {
-      winner.state = 'celebrating';
-      // FIX: The celebration duration is a property of the ship, not the component.
-      winner.celebrationTimer = winner.celebrationDuration;
-    }
-    this.audioService.playSound('celebrate');
-    this.createScoreTooltip(winner);
-    this.enqueueRadioMessage(winner, 'star_capture');
-    this.ships.forEach(c => {
-        if (c.id !== winner.id && !this.isShipCurrentlyControlled(c)) c.state = 'idle';
-    });
-    this.scheduleNextStar();
+    StarEventManager.captureStar(
+      winner,
+      this.targetStar,
+      this.ships,
+      {
+        starParticles: this.starParticles,
+        scoreTooltips: this.scoreTooltips,
+        nebulas: this.nebulas,
+        SPEED_INCREMENT_PER_STAR: this.SPEED_INCREMENT_PER_STAR,
+        MAX_SPEED_BONUS: this.MAX_SPEED_BONUS,
+      },
+      {
+        createStarExplosion: this.createStarExplosion.bind(this),
+        createNebula: this.createNebula.bind(this),
+        createScoreTooltip: this.createScoreTooltip.bind(this),
+        enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
+        scheduleNextStar: this.scheduleNextStar.bind(this),
+        isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
+      },
+      this.audioService
+    );
   }
 
   private createNebula(position: Vector2D) {
@@ -1081,23 +834,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
   
   private createScoreTooltip(ship: Ship) {
-    this.scoreTooltips.push({ shipId: ship.id, text: `${ship.score}`, position: ship.position.clone(), life: 180, maxLife: 180 });
+    StarEventManager.createScoreTooltip(ship, this.scoreTooltips);
   }
   
   private updateScoreTooltips() {
-    for (let i = this.scoreTooltips.length - 1; i >= 0; i--) {
-      const tooltip = this.scoreTooltips[i];
-      tooltip.life--;
-      if (tooltip.life <= 0) {
-        this.scoreTooltips.splice(i, 1);
-        continue;
-      }
-      const ship = this.ships.find(c => c.id === tooltip.shipId);
-      if (ship) {
-        tooltip.position.x = ship.position.x;
-        tooltip.position.y = ship.position.y - ship.radius - 25;
-      }
-    }
+    StarEventManager.updateScoreTooltips(this.scoreTooltips, this.ships);
   }
 
   private updateRadioBubbles() {
