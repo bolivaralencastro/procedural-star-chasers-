@@ -53,6 +53,7 @@ export class AudioService {
   private firstInteractionHandled = false; // Track if first user interaction happened
   private interactionListenersRegistered = false;
   private brokenSounds = new Set<string>();
+  private lastBackgroundPlayAttempt = 0;
 
   constructor() {
     this.loadSounds();
@@ -70,6 +71,7 @@ export class AudioService {
 
       if (asset.type === 'oneshot' || asset.type === 'loop') {
         const audio = new Audio(soundUrl);
+        audio.preload = 'auto'; // Ensure audio loads immediately
         audio.volume = asset.initialVolume;
         if (asset.type === 'loop') {
           audio.loop = true;
@@ -79,6 +81,7 @@ export class AudioService {
         const pool: HTMLAudioElement[] = [];
         for (let i = 0; i < (asset.poolSize || 5); i++) {
           const audio = new Audio(soundUrl);
+          audio.preload = 'auto'; // Ensure audio loads immediately
           audio.volume = asset.initialVolume;
           pool.push(audio);
         }
@@ -105,13 +108,14 @@ export class AudioService {
   private attemptToPlayCurrentBackgroundTrack() {
     if (!this.audioContextUnlocked || this.isMuted() || !this.currentBackgroundTrack) return;
     
+    this.lastBackgroundPlayAttempt = Date.now();
     const trackToPlay = this.sounds.get(this.currentBackgroundTrack);
     if (trackToPlay) {
       // Attempt to play the current background track
       const playPromise = trackToPlay.play();
       if (playPromise !== undefined) {
         playPromise.catch(e => {
-          console.warn(`Could not play background track ${this.currentBackgroundTrack}`, e);
+          this.handlePlayError(this.currentBackgroundTrack!, e);
         });
       }
     }
@@ -302,6 +306,15 @@ export class AudioService {
 
     // If the track is already playing, don't do anything
     if (this.currentBackgroundTrack === targetTrack) {
+      // Check if we should be playing but aren't (e.g. paused or stopped unexpectedly)
+      if (this.audioContextUnlocked && !this.isMuted()) {
+          const sound = this.sounds.get(targetTrack);
+          // Retry if paused and enough time has passed since last attempt (3s)
+          if (sound && sound.paused && !this.brokenSounds.has(targetTrack) && 
+              (Date.now() - this.lastBackgroundPlayAttempt > 3000)) {
+              this.attemptToPlayCurrentBackgroundTrack();
+          }
+      }
       return;
     }
 
