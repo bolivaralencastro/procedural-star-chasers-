@@ -59,18 +59,8 @@ export class AudioService {
   }
 
   private getSoundUrl(relativePath: string): string {
-    const baseHref = typeof document !== 'undefined'
-      ? document.querySelector('base')?.getAttribute('href') ?? './'
-      : './';
-
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-
-    try {
-      const baseUrl = new URL(baseHref, origin);
-      return new URL(`assets/sounds/${relativePath}`, baseUrl).toString();
-    } catch {
-      return `assets/sounds/${relativePath}`;
-    }
+    // Return simple relative path and let the browser resolve it against <base href>
+    return \`assets/sounds/\${relativePath}\`;
   }
 
   private loadSounds() {
@@ -271,8 +261,6 @@ export class AudioService {
 
   // Method to change background music based on game state
   updateBackgroundMusic(isHunting: boolean, isCoop: boolean, anyShipCelebrating: boolean) {
-    if (!this.audioContextUnlocked || this.isMuted()) return;
-
     // For now, always play deep space as we don't have other themes
     const targetTrack: LoopSoundName = 'normal_mode';
 
@@ -303,24 +291,12 @@ export class AudioService {
       }
     }
 
-    // Play new track if it's not null and different
-    if (targetTrack) {
-      const newTrack = this.sounds.get(targetTrack);
-      if (newTrack) {
-        newTrack.currentTime = 0;
-        // Attempt to play the track - may fail due to browser autoplay policies
-        const playPromise = newTrack.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(e => {
-            // If playback was prevented due to user interaction requirements, 
-            // log it but don't show an error to user
-            console.warn(`Background music autoplay prevented for ${targetTrack}. User interaction required.`, e);
-            // Store the track so we can play it after user interaction
-            this.currentBackgroundTrack = targetTrack;
-          });
-        }
-      }
-      this.currentBackgroundTrack = targetTrack;
+    // Update current track state
+    this.currentBackgroundTrack = targetTrack;
+
+    // Only attempt to play if unlocked and not muted
+    if (this.audioContextUnlocked && !this.isMuted()) {
+      this.attemptToPlayCurrentBackgroundTrack();
     }
   }
 
