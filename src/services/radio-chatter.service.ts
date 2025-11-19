@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { ShipColor, SHIP_PERSONAS } from '../models/ship-personas';
+import { ShipColor } from '../models/ship-personas';
 
 export type RadioContext =
   | 'proximity'
@@ -334,11 +334,9 @@ export class RadioChatterService {
       return null;
     }
 
-    const persona = SHIP_PERSONAS[color];
-    const decoratedLine = `${persona.codename}: ${line}`;
     this.nextAllowedTimes.set(key, now + this.randomInRange(cooldown));
 
-    return decoratedLine;
+    return line;
   }
 
   getMessageDuration(): number {
