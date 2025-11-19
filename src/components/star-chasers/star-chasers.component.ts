@@ -21,99 +21,21 @@ import { PERSONALITIES, SHIP_PERSONAS, ShipColor, ShipPersonality } from '../../
 import { Vector2D } from '../../models/vector2d';
 import { ConstellationService } from '../../services/constellation.service';
 import { Ship, ShipState } from '../../models/ship';
-
-type ControlKey = 'up' | 'down' | 'left' | 'right' | 'space' | 'reload';
-
-interface Asteroid {
-  position: Vector2D;
-  velocity: Vector2D;
-  radius: number;
-  size: 'large' | 'medium' | 'small';
-  shape: Vector2D[]; // offsets from center
-  rotation: number;
-  rotationSpeed: number;
-  justTeleported?: number;
-}
-
-interface Projectile {
-  position: Vector2D;
-  velocity: Vector2D;
-  life: number;
-  color: string;
-  ownerId: number;
-  tail: Vector2D[];
-  justTeleported?: number;
-}
-
-interface BackgroundStar {
-  pos: Vector2D;
-  radius: number;
-  opacity: number;
-  twinkleSpeed: number;
-  color: string;
-}
-
-interface TargetStar {
-  position: Vector2D;
-  velocity: Vector2D;
-  acceleration: Vector2D;
-  radius: number;
-  exists: boolean;
-  isDespawning: boolean;
-  pulseAngle: number;
-  opacity: number;
-  spawnTime: number;
-  lifetime: number;
-}
-
-interface Particle {
-  position: Vector2D;
-  velocity: Vector2D;
-  radius: number;
-  life: number;
-  maxLife: number;
-  color: string;
-}
-
-interface ScoreTooltip {
-  shipId: number;
-  text: string;
-  position: Vector2D;
-  life: number;
-  maxLife: number;
-}
-
-interface RadioBubble {
-  shipId: number;
-  textLines: string[];
-  position: Vector2D;
-  life: number;
-  maxLife: number;
-  color: string;
-  context: RadioContext;
-}
-
-interface Nebula {
-  position: Vector2D;
-  radius: number;
-  life: number;
-  maxLife: number;
-}
-
-interface WormholePair {
-  entry: {
-    position: Vector2D;
-    radius: number;
-    pulseAngle: number;
-  };
-  exit: {
-    position: Vector2D;
-    radius: number;
-    pulseAngle: number;
-  };
-  life: number;
-  maxLife: number;
-}
+import { GameUtilsService } from '../../services/game-utils.service';
+import {
+  ControlKey,
+  Asteroid,
+  Projectile,
+  BackgroundStar,
+  TargetStar,
+  Particle,
+  ScoreTooltip,
+  RadioBubble,
+  Nebula,
+  WormholePair
+} from '../../models/game-entities';
+import { GAME_CONSTANTS } from './game-constants';
+import { TextUtils } from './text-utils';
 
 @Component({
   selector: 'app-star-chasers',
@@ -147,13 +69,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private gameMode: 'normal' | 'asteroid_event' = 'normal';
   private eventTriggerScore = 1;
   private timeSinceLastEventCheck = 0;
-  private readonly EVENT_CHECK_INTERVAL = 5000;
+  private readonly EVENT_CHECK_INTERVAL = GAME_CONSTANTS.EVENT_CHECK_INTERVAL;
 
   private targetStar: TargetStar = {
     position: new Vector2D(),
     velocity: new Vector2D(),
     acceleration: new Vector2D(),
-    radius: 15,
+    radius: GAME_CONSTANTS.TARGET_STAR_RADIUS,
     exists: false,
     isDespawning: false,
     pulseAngle: 0,
@@ -162,14 +84,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     lifetime: 0,
   };
   private nextStarSpawnTime: number = 0;
-  private readonly TAIL_LENGTH = 20;
-  private readonly SPEED_INCREMENT_PER_STAR = 0.1;
-  private readonly MAX_SPEED_BONUS = 2.0;
+  private readonly TAIL_LENGTH = GAME_CONSTANTS.TAIL_LENGTH;
+  private readonly SPEED_INCREMENT_PER_STAR = GAME_CONSTANTS.SPEED_INCREMENT_PER_STAR;
+  private readonly MAX_SPEED_BONUS = GAME_CONSTANTS.MAX_SPEED_BONUS;
 
   private mouse = {
     pos: new Vector2D(-100, -100),
     isDown: false,
-    orbitRadius: 60,
+    orbitRadius: GAME_CONSTANTS.MOUSE_ORBIT_RADIUS,
   };
 
   public contextMenu = { visible: false, x: 0, y: 0 };
@@ -181,6 +103,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   public wakeLockService = inject(ScreenWakeLockService);
   private radioService = inject(RadioChatterService);
   private constellationService = inject(ConstellationService);
+  private gameUtils = inject(GameUtilsService);
   private firstInteractionHandled = false; // Track if first interaction happened
 
   private controlledShipId: number | null = null;
@@ -193,7 +116,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   private proximityCooldowns = new Map<string, number>();
   private shipChatterAvailableAt = new Map<number, number>();
   private philosophicalChatterNextTime = 0;
-  private readonly SHIP_CHATTER_DELAY_RANGE: [number, number] = [9000, 16000];
+  private readonly SHIP_CHATTER_DELAY_RANGE = GAME_CONSTANTS.SHIP_CHATTER_DELAY_RANGE;
 
   // Constellation mode
   public constellationMode = false;
@@ -202,9 +125,9 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   // Long-press properties for mobile
   private longPressTimer: any = null;
   private touchStartPosition: Vector2D | null = null;
-  private readonly LONG_PRESS_DURATION = 500; // 500ms
-  private readonly CONTEXT_MENU_WIDTH = 208; // matches w-52 (4px * 52)
-  private readonly CONTEXT_MENU_HEIGHT = 260;
+  private readonly LONG_PRESS_DURATION = GAME_CONSTANTS.LONG_PRESS_DURATION;
+  private readonly CONTEXT_MENU_WIDTH = GAME_CONSTANTS.CONTEXT_MENU_WIDTH;
+  private readonly CONTEXT_MENU_HEIGHT = GAME_CONSTANTS.CONTEXT_MENU_HEIGHT;
   
   // Scaling properties
   private renderScale = 1.0;
@@ -214,7 +137,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize() {
     this.setupCanvas();
-    this.createBackgroundStars(200);
+    this.createBackgroundStars(GAME_CONSTANTS.DEFAULT_BACKGROUND_STAR_COUNT);
   }
 
   @HostListener('document:mousemove', ['$event'])
@@ -410,8 +333,8 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
           this.audioService.playSound('launch');
           let launchSpeed = ship.orbitalSpeed * 80;
           if (ship.color === 'Red') {
-            launchSpeed *= 1.2; // A bit more initial oomph
-            ship.afterburnerTimer = 60; // 1 second duration
+            launchSpeed *= GAME_CONSTANTS.RED_LAUNCH_SPEED_MULTIPLIER;
+            ship.afterburnerTimer = GAME_CONSTANTS.RED_AFTERBURNER_DURATION;
           }
           const tangent = new Vector2D(
             this.mouse.pos.y - ship.position.y,
@@ -858,16 +781,16 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.wormhole = {
       entry: {
         position: this.mouse.pos.clone(),
-        radius: 30,
+        radius: GAME_CONSTANTS.WORMHOLE_RADIUS_MIN,
         pulseAngle: Math.random() * Math.PI * 2,
       },
       exit: {
         position: exitPosition,
-        radius: 30,
+        radius: GAME_CONSTANTS.WORMHOLE_RADIUS_MIN,
         pulseAngle: Math.random() * Math.PI * 2,
       },
-      life: 12000, // 12 seconds
-      maxLife: 12000,
+      life: GAME_CONSTANTS.WORMHOLE_LIFETIME,
+      maxLife: GAME_CONSTANTS.WORMHOLE_LIFETIME,
     };
     this.audioService.playSound('wormhole_open');
   }
@@ -927,7 +850,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
         const exitDirection = new Vector2D(Math.random() - 0.5, Math.random() - 0.5).normalize();
         const speed = entity.velocity.magnitude();
         entity.velocity = exitDirection.multiply(speed > 1 ? speed : 2);
-        entity.justTeleported = 180; // 3 seconds immunity
+        entity.justTeleported = GAME_CONSTANTS.WORMHOLE_TELEPORT_COOLDOWN_FRAMES;
 
         this.createBlinkParticles(entity.position, '#FFFFFF');
         
@@ -1626,7 +1549,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       this.starParticles.push({ position: this.targetStar.position.clone(), velocity, radius: Math.random() * 1.5 + 0.5, life: 40 + Math.random() * 40, maxLife: 80, color: 'rgba(255, 223, 0, 1)' });
   }
 
-  private createStarExplosion(position: Vector2D, count = 60) {
+  private createStarExplosion(position: Vector2D, count = GAME_CONSTANTS.STAR_EXPLOSION_PARTICLE_COUNT) {
     const colors = ['#FFD700', '#FFA500', '#FFFFE0', '#FFFFFF'];
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -1694,13 +1617,13 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     }
 
     const vel = velocity || new Vector2D(w / 2 - pos.x, h / 2 - pos.y).normalize().multiply(Math.random() * 1 + 0.5);
-    const radius = size === 'large' ? 40 : size === 'medium' ? 20 : 10;
+    const radius = GAME_CONSTANTS.ASTEROID_RADIUS[size];
 
     const shape: Vector2D[] = [];
-    const segments = 10 + Math.floor(Math.random() * 5);
+    const segments = GAME_CONSTANTS.ASTEROID_SHAPE_SEGMENTS_MIN + Math.floor(Math.random() * GAME_CONSTANTS.ASTEROID_SHAPE_SEGMENTS_RANGE);
     for (let i = 0; i < segments; i++) {
         const angle = (i / segments) * Math.PI * 2;
-        const dist = radius * (0.8 + Math.random() * 0.4);
+        const dist = radius * (GAME_CONSTANTS.ASTEROID_SHAPE_DIST_MIN + Math.random() * GAME_CONSTANTS.ASTEROID_SHAPE_DIST_RANGE);
         shape.push(new Vector2D(Math.cos(angle) * dist, Math.sin(angle) * dist));
     }
 
@@ -1726,11 +1649,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
             if (nearestShip) {
                 const direction = nearestShip.position.clone().subtract(asteroid.position).normalize();
-                const trackingStrength = 0.002;
+                const trackingStrength = GAME_CONSTANTS.ASTEROID_TRACKING_STRENGTH;
                 const acceleration = direction.multiply(trackingStrength);
                 asteroid.velocity.add(acceleration);
 
-                const maxAsteroidSpeed = asteroid.size === 'large' ? 1.5 : asteroid.size === 'medium' ? 2.0 : 2.5;
+                const maxAsteroidSpeed = GAME_CONSTANTS.ASTEROID_MAX_SPEED[asteroid.size];
                 if (asteroid.velocity.magnitude() > maxAsteroidSpeed) {
                     asteroid.velocity.normalize().multiply(maxAsteroidSpeed);
                 }
@@ -1755,7 +1678,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
                 const isControlled = this.isShipCurrentlyControlled(ship);
                 if (!isControlled) {
                   ship.state = 'paralyzed';
-                  ship.paralyzeTimer = 5000;
+                  ship.paralyzeTimer = GAME_CONSTANTS.SHIP_PARALYZE_DURATION;
                 }
                 ship.velocity = asteroid.velocity.clone().multiply(0.2);
                 this.createStarExplosion(ship.position, 30);
@@ -1777,12 +1700,12 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
       const projectileAngle = ship.rotation;
       const direction = new Vector2D(Math.cos(projectileAngle), Math.sin(projectileAngle));
       const startPos = ship.position.clone().add(direction.multiply(ship.radius));
-      const velocity = direction.multiply(8).add(ship.velocity.clone().multiply(0.5));
+      const velocity = direction.multiply(GAME_CONSTANTS.PROJECTILE_SPEED).add(ship.velocity.clone().multiply(GAME_CONSTANTS.PROJECTILE_SHIP_VELOCITY_FACTOR));
       
       this.projectiles.push({
           position: startPos,
           velocity: velocity,
-          life: 60,
+          life: GAME_CONSTANTS.PROJECTILE_LIFE,
           color: '#FFD700', // Gold
           ownerId: ship.id,
           tail: [],
@@ -1833,20 +1756,17 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private lerp(start: number, end: number, amt: number): number {
-    return (1 - amt) * start + amt * end;
+    return this.gameUtils.lerp(start, end, amt);
   }
 
   // Helper function to keep an angle between -PI and PI
   private normalizeAngle(angle: number): number {
-    while (angle > Math.PI) angle -= 2 * Math.PI;
-    while (angle < -Math.PI) angle += 2 * Math.PI;
-    return angle;
+    return this.gameUtils.normalizeAngle(angle);
   }
   
   // Helper function to smoothly interpolate between two angles
   private lerpAngle(a: number, b: number, t: number): number {
-    const da = this.normalizeAngle(b - a);
-    return this.normalizeAngle(a + da * t);
+    return this.gameUtils.lerpAngle(a, b, t);
   }
 
   private draw() {
@@ -2361,36 +2281,11 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private wrapRadioText(text: string, maxWidth: number): string[] {
-    const font = 'bold 14px "Courier New", monospace';
-    this.ctx.save();
-    this.ctx.font = font;
-
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-
-    words.forEach(word => {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const metrics = this.ctx.measureText(testLine);
-      if (metrics.width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    });
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    this.ctx.restore();
-    return lines;
+    return TextUtils.wrapText(this.ctx, text, maxWidth);
   }
 
   private getShipChatterDelay(): number {
-    const [min, max] = this.SHIP_CHATTER_DELAY_RANGE;
-    return min + Math.random() * (max - min);
+    return TextUtils.getRandomDelay(this.SHIP_CHATTER_DELAY_RANGE);
   }
 
   private toggleConstellationMode() {
