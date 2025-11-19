@@ -50,6 +50,8 @@ import { CanvasManager } from './canvas-manager';
 import { ShipUpdateManager } from './ship-update-manager';
 import { StarEventManager } from './star-event-manager';
 import { EventHandlersManager } from './event-handlers-manager';
+import { ConstellationManager } from './constellation-manager';
+import { ShipLaunchManager } from './ship-launch-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -236,8 +238,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.mouse.pos.y = touchY / this.renderScale;
   
     if (this.longPressTimer && this.touchStartPosition) {
-      const dist = Vector2D.distance(this.touchStartPosition, this.mouse.pos);
-      if (dist > 10 / this.renderScale) { // If finger moves more than 10px (scaled), cancel long press
+      if (EventHandlersManager.shouldCancelLongPress(this.touchStartPosition, this.mouse.pos, this.renderScale)) {
         clearTimeout(this.longPressTimer);
         this.longPressTimer = null;
       }
@@ -341,23 +342,14 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     this.longPressTimer = null;
 
     if (this.mouse.isDown && this.mouseInteractionEnabled()) {
-      this.ships.forEach(ship => {
-        if (ship.state === 'orbiting') {
-          ship.state = 'launched';
-          this.audioService.playSound('launch');
-          let launchSpeed = ship.orbitalSpeed * 80;
-          if (ship.color === 'Red') {
-            launchSpeed *= GAME_CONSTANTS.RED_LAUNCH_SPEED_MULTIPLIER;
-            ship.afterburnerTimer = GAME_CONSTANTS.RED_AFTERBURNER_DURATION;
-          }
-          const tangent = new Vector2D(
-            this.mouse.pos.y - ship.position.y,
-            ship.position.x - this.mouse.pos.x
-          ).normalize();
-          ship.velocity = tangent.multiply(launchSpeed);
-          this.triggerLaunchChatter(ship);
+      ShipLaunchManager.launchOrbitingShips(
+        this.ships,
+        this.mouse,
+        {
+          playLaunchSound: () => this.audioService.playSound('launch'),
+          triggerLaunchChatter: this.triggerLaunchChatter.bind(this),
         }
-      });
+      );
     }
     this.mouse.isDown = false;
   }
@@ -1029,31 +1021,15 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private toggleConstellationMode() {
-    this.constellationMode = !this.constellationMode;
-    
-    if (this.constellationMode) {
-      // Assign ships to formation
-      const pattern = this.constellationService.getPattern('heart');
-      // Center the pattern on screen
-      const center = new Vector2D(this.worldWidth / 2, this.worldHeight / 2);
-      const centeredPattern = pattern.map(p => p.clone().add(center));
-      
-      this.formationAssignments = this.constellationService.assignShipsToPattern(this.ships, centeredPattern);
-      
-      // Set ships to forming state
-      this.ships.forEach(ship => {
-        if (this.formationAssignments.has(ship.id)) {
-          ship.state = 'forming';
-        }
-      });
-    } else {
-      // Release ships
-      this.ships.forEach(ship => {
-        if (ship.state === 'forming') {
-          ship.state = 'idle';
-        }
-      });
-      this.formationAssignments.clear();
-    }
+    const result = ConstellationManager.toggleConstellationMode(
+      this.constellationMode,
+      this.ships,
+      this.formationAssignments,
+      this.worldWidth,
+      this.worldHeight,
+      this.constellationService
+    );
+    this.constellationMode = result.newMode;
+    this.formationAssignments = result.formationAssignments;
   }
 }
