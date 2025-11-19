@@ -37,6 +37,8 @@ import {
 import { GAME_CONSTANTS } from './game-constants';
 import { TextUtils } from './text-utils';
 import { AsteroidManager } from './asteroid-manager';
+import { ProjectileManager } from './projectile-manager';
+import { ParticleEffectsManager } from './particle-effects-manager';
 
 @Component({
   selector: 'app-star-chasers',
@@ -1525,40 +1527,19 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
   }
 
   private updateParticles() {
-    for (let i = this.starParticles.length - 1; i >= 0; i--) {
-        const p = this.starParticles[i];
-        p.position.add(p.velocity);
-        p.life--;
-        if (p.life <= 0) this.starParticles.splice(i, 1);
-    }
+    ParticleEffectsManager.updateParticles(this.starParticles);
   }
 
   private updateExplosionParticles() {
-    for (let i = this.explosionParticles.length - 1; i >= 0; i--) {
-        const p = this.explosionParticles[i];
-        p.position.add(p.velocity);
-        p.velocity.multiply(0.97);
-        p.life--;
-        if (p.life <= 0) this.explosionParticles.splice(i, 1);
-    }
+    ParticleEffectsManager.updateExplosionParticles(this.explosionParticles);
   }
 
   private spawnStarParticle() {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 0.5 + 0.2;
-      const velocity = new Vector2D(Math.cos(angle) * speed, Math.sin(angle) * speed);
-      this.starParticles.push({ position: this.targetStar.position.clone(), velocity, radius: Math.random() * 1.5 + 0.5, life: 40 + Math.random() * 40, maxLife: 80, color: 'rgba(255, 223, 0, 1)' });
+    ParticleEffectsManager.spawnStarParticle(this.starParticles, this.targetStar.position);
   }
 
   private createStarExplosion(position: Vector2D, count = GAME_CONSTANTS.STAR_EXPLOSION_PARTICLE_COUNT) {
-    const colors = ['#FFD700', '#FFA500', '#FFFFE0', '#FFFFFF'];
-    for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 6 + 2;
-        const velocity = new Vector2D(Math.cos(angle) * speed, Math.sin(angle) * speed);
-        const life = 50 + Math.random() * 40;
-        this.explosionParticles.push({ position: position.clone(), velocity, radius: Math.random() * 2.5 + 1, life, maxLife: life, color: colors[Math.floor(Math.random() * colors.length)] });
-    }
+    ParticleEffectsManager.createStarExplosion(this.explosionParticles, position, count);
   }
 
   private performBlink(ship: Ship) {
@@ -1576,105 +1557,37 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
     endPos.x = (endPos.x + w) % w;
     endPos.y = (endPos.y + h) % h;
 
-    this.createBlinkParticles(startPos, ship.hexColor);
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, startPos, ship.hexColor);
     ship.position = endPos;
     ship.tail = [];
     ship.isBlinking = 15;
-    this.createBlinkParticles(endPos, ship.hexColor);
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, endPos, ship.hexColor);
     ship.blinkTimer = ship.blinkCooldown + (Math.random() - 0.5) * 4000;
   }
 
   private createBlinkParticles(position: Vector2D, color: string) {
-    for (let i = 0; i < 20; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 4 + 1;
-      const velocity = new Vector2D(Math.cos(angle) * speed, Math.sin(angle) * speed);
-      const life = 20 + Math.random() * 20;
-      this.explosionParticles.push({ position: position.clone(), velocity, life, radius: Math.random() * 2 + 1, maxLife: life, color });
-    }
+    ParticleEffectsManager.createBlinkParticles(this.explosionParticles, position, color);
   }
 
   private createAfterburnerParticle(ship: Ship) {
-    const angle = Math.atan2(ship.velocity.y, ship.velocity.x) + Math.PI + (Math.random() - 0.5) * 0.5;
-    const speed = ship.velocity.magnitude() * 0.5 + Math.random() * 2;
-    const velocity = new Vector2D(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    const life = 20 + Math.random() * 20;
-    this.explosionParticles.push({ position: ship.position.clone(), velocity, life, radius: Math.random() * 1.5 + 0.5, maxLife: life, color: ['#ffc107', '#ff9800', '#f44336'][Math.floor(Math.random() * 3)] });
+    ParticleEffectsManager.createAfterburnerParticle(this.explosionParticles, ship.position, ship.velocity);
   }
 
   // Asteroid event methods
   private spawnAsteroid(size: Asteroid['size'], position?: Vector2D, velocity?: Vector2D) {
-    const w = this.worldWidth;
-    const h = this.worldHeight;
-    const edge = Math.floor(Math.random() * 4);
-    let pos: Vector2D;
-    if (position) {
-      pos = position;
-    } else {
-      if (edge === 0) pos = new Vector2D(Math.random() * w, -50); // Top
-      else if (edge === 1) pos = new Vector2D(w + 50, Math.random() * h); // Right
-      else if (edge === 2) pos = new Vector2D(Math.random() * w, h + 50); // Bottom
-      else pos = new Vector2D(-50, Math.random() * h); // Left
-    }
-
-    const vel = velocity || new Vector2D(w / 2 - pos.x, h / 2 - pos.y).normalize().multiply(Math.random() * 1 + 0.5);
-    const radius = GAME_CONSTANTS.ASTEROID_RADIUS[size];
-
-    const shape: Vector2D[] = [];
-    const segments = GAME_CONSTANTS.ASTEROID_SHAPE_SEGMENTS_MIN + Math.floor(Math.random() * GAME_CONSTANTS.ASTEROID_SHAPE_SEGMENTS_RANGE);
-    for (let i = 0; i < segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        const dist = radius * (GAME_CONSTANTS.ASTEROID_SHAPE_DIST_MIN + Math.random() * GAME_CONSTANTS.ASTEROID_SHAPE_DIST_RANGE);
-        shape.push(new Vector2D(Math.cos(angle) * dist, Math.sin(angle) * dist));
-    }
-
-    this.asteroids.push({ position: pos, velocity: vel, radius, size, shape, rotation: 0, rotationSpeed: (Math.random() - 0.5) * 0.02 });
+    AsteroidManager.spawn(this.asteroids, size, this.worldWidth, this.worldHeight, position, velocity);
   }
   
   private updateAsteroids() {
     for (let i = this.asteroids.length - 1; i >= 0; i--) {
         const asteroid = this.asteroids[i];
         
-        // Add weak homing behavior towards the nearest ship
-        if (this.ships.length > 0) {
-            let nearestShip: Ship | null = null;
-            let minDist = Infinity;
-            this.ships.forEach(ship => {
-                if (ship.state === 'paralyzed') return;
-                const d = Vector2D.distance(asteroid.position, ship.position);
-                if (d < minDist) {
-                    minDist = d;
-                    nearestShip = ship;
-                }
-            });
-
-            if (nearestShip) {
-                const direction = nearestShip.position.clone().subtract(asteroid.position).normalize();
-                const trackingStrength = GAME_CONSTANTS.ASTEROID_TRACKING_STRENGTH;
-                const acceleration = direction.multiply(trackingStrength);
-                asteroid.velocity.add(acceleration);
-
-                const maxAsteroidSpeed = GAME_CONSTANTS.ASTEROID_MAX_SPEED[asteroid.size];
-                if (asteroid.velocity.magnitude() > maxAsteroidSpeed) {
-                    asteroid.velocity.normalize().multiply(maxAsteroidSpeed);
-                }
-            }
-        }
-
-        asteroid.position.add(asteroid.velocity);
-        asteroid.rotation += asteroid.rotationSpeed;
-
-        // Screen wrap
-        const w = this.worldWidth;
-        const h = this.worldHeight;
-        if (asteroid.position.x < -asteroid.radius) asteroid.position.x = w + asteroid.radius;
-        if (asteroid.position.x > w + asteroid.radius) asteroid.position.x = -asteroid.radius;
-        if (asteroid.position.y < -asteroid.radius) asteroid.position.y = h + asteroid.radius;
-        if (asteroid.position.y > h + asteroid.radius) asteroid.position.y = -asteroid.radius;
+        // Update movement with homing behavior
+        AsteroidManager.updateMovement(asteroid, this.ships, this.worldWidth, this.worldHeight);
         
         // Collision with ships
         this.ships.forEach(ship => {
-            if (ship.state !== 'paralyzed' && Vector2D.distance(asteroid.position, ship.position) < asteroid.radius + ship.radius) {
+            if (AsteroidManager.checkShipCollision(asteroid, ship)) {
                 ship.score = Math.max(0, ship.score - 1);
                 const isControlled = this.isShipCurrentlyControlled(ship);
                 if (!isControlled) {
@@ -1698,43 +1611,22 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
 
   private fireProjectile(ship: Ship) {
       this.audioService.playPooledSound('fire');
-      const projectileAngle = ship.rotation;
-      const direction = new Vector2D(Math.cos(projectileAngle), Math.sin(projectileAngle));
-      const startPos = ship.position.clone().add(direction.multiply(ship.radius));
-      const velocity = direction.multiply(GAME_CONSTANTS.PROJECTILE_SPEED).add(ship.velocity.clone().multiply(GAME_CONSTANTS.PROJECTILE_SHIP_VELOCITY_FACTOR));
-      
-      this.projectiles.push({
-          position: startPos,
-          velocity: velocity,
-          life: GAME_CONSTANTS.PROJECTILE_LIFE,
-          color: '#FFD700', // Gold
-          ownerId: ship.id,
-          tail: [],
-      });
-
-      ship.ammo--;
-      ship.fireCooldown = 500; // 0.5 second cooldown
+      ProjectileManager.fire(this.projectiles, ship);
   }
 
   private updateProjectiles() {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
         const p = this.projectiles[i];
-        p.position.add(p.velocity);
-        p.life--;
-        
-        p.tail.push(p.position.clone());
-        if (p.tail.length > 10) {
-            p.tail.shift();
-        }
+        ProjectileManager.updateMovement(p);
 
-        if (p.life <= 0) {
+        if (ProjectileManager.isExpired(p)) {
             this.projectiles.splice(i, 1);
             continue;
         }
 
         for (let j = this.asteroids.length - 1; j >= 0; j--) {
             const asteroid = this.asteroids[j];
-            if (Vector2D.distance(p.position, asteroid.position) < asteroid.radius + 3) { // FIX: Account for projectile radius
+            if (ProjectileManager.checkAsteroidCollision(p, asteroid)) {
                 this.projectiles.splice(i, 1);
                 this.createStarExplosion(asteroid.position, 15);
                 this.audioService.playPooledSound('explosion');
@@ -1744,11 +1636,7 @@ export class StarChasersComponent implements AfterViewInit, OnDestroy {
                   ownerShip.asteroidsDestroyed++;
                 }
 
-                if (asteroid.size === 'large') {
-                    for(let k = 0; k < 2; k++) this.spawnAsteroid('medium', asteroid.position.clone(), new Vector2D(Math.random()*2-1, Math.random()*2-1).normalize().multiply(1.5));
-                } else if (asteroid.size === 'medium') {
-                    for(let k = 0; k < 2; k++) this.spawnAsteroid('small', asteroid.position.clone(), new Vector2D(Math.random()*2-1, Math.random()*2-1).normalize().multiply(2));
-                }
+                ProjectileManager.splitAsteroid(asteroid, this.asteroids, this.spawnAsteroid.bind(this));
                 this.asteroids.splice(j, 1);
                 break; 
             }
