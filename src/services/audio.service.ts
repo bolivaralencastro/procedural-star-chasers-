@@ -52,6 +52,7 @@ export class AudioService {
   private currentBackgroundTrack: LoopSoundName | null = null;
   private firstInteractionHandled = false; // Track if first user interaction happened
   private interactionListenersRegistered = false;
+  private brokenSounds = new Set<string>();
 
   constructor() {
     this.loadSounds();
@@ -171,22 +172,40 @@ export class AudioService {
   }
 
   playSound(name: SoundName) {
-    if (this.isMuted()) return;
+    if (this.isMuted() || this.brokenSounds.has(name)) return;
     const sound = this.sounds.get(name);
     if (sound) {
       sound.currentTime = 0;
-      sound.play().catch(e => { /* ignore play interruption */ });
+      sound.play().catch(e => this.handlePlayError(name, e));
     }
   }
 
   playPooledSound(name: PooledSoundName) {
-    if (this.isMuted()) return;
+    if (this.isMuted() || this.brokenSounds.has(name)) return;
     const poolData = this.soundPools.get(name);
     if (poolData) {
       const sound = poolData.pool[poolData.index];
       sound.currentTime = 0;
-      sound.play().catch(e => { /* ignore */ });
+      sound.play().catch(e => this.handlePlayError(name, e));
       poolData.index = (poolData.index + 1) % poolData.pool.length;
+    }
+  }
+
+  private handlePlayError(name: string, error: any) {
+    if (error.name === 'NotSupportedError' || error.name === 'NotAllowedError') {
+        // Only log NotSupportedError once and mark as broken
+        if (error.name === 'NotSupportedError') {
+            if (!this.brokenSounds.has(name)) {
+                console.warn(`Audio file for '${name}' is not supported or corrupted. Disabling this sound.`, error);
+                this.brokenSounds.add(name);
+            }
+        } else {
+            // NotAllowedError is usually temporary (autoplay policy), so we don't disable the sound permanently
+            // but we can log it as a warning if needed, or just ignore it as it will be fixed by interaction
+             console.warn(`Autoplay prevented for '${name}'. Waiting for user interaction.`);
+        }
+    } else {
+        console.error(`Error playing sound '${name}':`, error);
     }
   }
 
@@ -200,50 +219,54 @@ export class AudioService {
     };
     
     // Engine loop
-    const engineSound = this.sounds.get('engine');
-    if(engineSound) {
-        let targetEngineVolume = 0;
-        let targetPlaybackRate = 1.0;
-        if (isHunting || isCoop) {
-            targetEngineVolume = 0.3;
-            targetPlaybackRate = 1.4;
-        } else if (!isOrbiting) { // Idle sound
-            targetEngineVolume = 0.15;
-            targetPlaybackRate = 1.0;
-        }
-        
-        if (targetEngineVolume > 0 && engineSound.paused) {
-            engineSound.play().catch(e => console.error("Engine sound failed to start", e));
-        }
-        engineSound.volume = this.lerp(engineSound.volume, targetEngineVolume, 0.1);
-        engineSound.playbackRate = this.lerp(engineSound.playbackRate, targetPlaybackRate, 0.1);
-        if(engineSound.volume < 0.01 && !engineSound.paused) {
-            engineSound.pause();
+    if (!this.brokenSounds.has('engine')) {
+        const engineSound = this.sounds.get('engine');
+        if(engineSound) {
+            let targetEngineVolume = 0;
+            let targetPlaybackRate = 1.0;
+            if (isHunting || isCoop) {
+                targetEngineVolume = 0.3;
+                targetPlaybackRate = 1.4;
+            } else if (!isOrbiting) { // Idle sound
+                targetEngineVolume = 0.15;
+                targetPlaybackRate = 1.0;
+            }
+            
+            if (targetEngineVolume > 0 && engineSound.paused) {
+                engineSound.play().catch(e => this.handlePlayError('engine', e));
+            }
+            engineSound.volume = this.lerp(engineSound.volume, targetEngineVolume, 0.1);
+            engineSound.playbackRate = this.lerp(engineSound.playbackRate, targetPlaybackRate, 0.1);
+            if(engineSound.volume < 0.01 && !engineSound.paused) {
+                engineSound.pause();
+            }
         }
     }
 
     // Orbit loop
-    const orbitSound = this.sounds.get('orbit');
-    if(orbitSound) {
-        // Increase volume when orbiting (was 0.6, now 0.8)
-        let targetOrbitVolume = isOrbiting ? 0.8 : 0;
-        
-        if (isOrbiting && orbitSound.paused) {
-            orbitSound.play().catch(e => console.error("Orbit sound failed to start", e));
-        }
-        
-        if (isOrbiting && orbitingShipSpeed !== undefined) {
-            // Adjust playback rate based on speed, but keep it within reasonable limits
-            orbitSound.playbackRate = Math.max(0.5, Math.min(2.0, 1 + (orbitingShipSpeed / 0.3)));
-        }
-        
-        // Smooth volume transition
-        orbitSound.volume = this.lerp(orbitSound.volume, targetOrbitVolume, 0.1);
-        
-        // Stop sound if volume is very low and we're not orbiting
-        if (!isOrbiting && orbitSound.volume < 0.01 && !orbitSound.paused) {
-            orbitSound.pause();
-            orbitSound.currentTime = 0;
+    if (!this.brokenSounds.has('orbit')) {
+        const orbitSound = this.sounds.get('orbit');
+        if(orbitSound) {
+            // Increase volume when orbiting (was 0.6, now 0.8)
+            let targetOrbitVolume = isOrbiting ? 0.8 : 0;
+            
+            if (isOrbiting && orbitSound.paused) {
+                orbitSound.play().catch(e => this.handlePlayError('orbit', e));
+            }
+            
+            if (isOrbiting && orbitingShipSpeed !== undefined) {
+                // Adjust playback rate based on speed, but keep it within reasonable limits
+                orbitSound.playbackRate = Math.max(0.5, Math.min(2.0, 1 + (orbitingShipSpeed / 0.3)));
+            }
+            
+            // Smooth volume transition
+            orbitSound.volume = this.lerp(orbitSound.volume, targetOrbitVolume, 0.1);
+            
+            // Stop sound if volume is very low and we're not orbiting
+            if (!isOrbiting && orbitSound.volume < 0.01 && !orbitSound.paused) {
+                orbitSound.pause();
+                orbitSound.currentTime = 0;
+            }
         }
     }
   }

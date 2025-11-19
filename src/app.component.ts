@@ -34,6 +34,12 @@ export class AppComponent implements OnDestroy {
   formattedDate = computed(() => this.formatDate(this.currentTime()));
 
   constructor() {
+    // Create an effect to react to wake lock state changes
+    // Effects must be created in injection context (constructor)
+    effect(() => {
+      this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
+    });
+
     afterNextRender(() => {
       if (isPlatformBrowser(this.platformId)) {
         document.addEventListener('fullscreenchange', this.onFullscreenChange);
@@ -44,18 +50,11 @@ export class AppComponent implements OnDestroy {
         // Initialize wake lock state
         this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
         
-        // Create an effect to react to wake lock state changes
-        effect(() => {
-          this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
-        });
-
         this.checkMobile();
         window.addEventListener('resize', () => this.checkMobile());
       }
     });
-  }
-
-  private checkMobile() {
+  }  private checkMobile() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                    (window.innerWidth < 800 && 'ontouchstart' in window);
     this.isMobile.set(isMobile);
