@@ -1,12 +1,220 @@
 import { Vector2D } from '../../models/vector2d';
 import { Ship } from '../../models/ship';
 import { MouseState, ContextMenuState } from './input-manager';
-import { ControlKey } from '../../models/game-entities';
+import { ControlKey, WormholePair } from '../../models/game-entities';
+import { GAME_CONSTANTS } from './game-constants';
 
 /**
  * Manages UI event handlers and related state
  */
 export class EventHandlersManager {
+  /**
+   * Updates mouse position during movement events and triggers the first interaction callback if needed.
+   */
+  static handleMouseMove(
+    event: MouseEvent,
+    canvas: HTMLCanvasElement,
+    renderScale: number,
+    mouse: MouseState,
+    firstInteractionHandled: boolean,
+    onFirstInteraction: () => void,
+  ): boolean {
+    const rect = canvas.getBoundingClientRect();
+    mouse.pos.x = (event.clientX - rect.left) / renderScale;
+    mouse.pos.y = (event.clientY - rect.top) / renderScale;
+
+    if (!firstInteractionHandled) {
+      onFirstInteraction();
+      return true;
+    }
+
+    return firstInteractionHandled;
+  }
+
+  /**
+   * Handles touch move interactions, keeping the long press timer in sync.
+   */
+  static handleTouchMove(
+    event: TouchEvent,
+    canvas: HTMLCanvasElement,
+    renderScale: number,
+    mouse: MouseState,
+    touchStartPosition: Vector2D | null,
+    longPressTimer: ReturnType<typeof setTimeout> | null,
+    onCancelLongPress: () => void,
+  ): ReturnType<typeof setTimeout> | null {
+    const rect = canvas.getBoundingClientRect();
+    const touch = event.touches[0];
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+    mouse.pos.x = touchX / renderScale;
+    mouse.pos.y = touchY / renderScale;
+
+    if (
+      longPressTimer &&
+      this.shouldCancelLongPress(touchStartPosition, mouse.pos, renderScale)
+    ) {
+      onCancelLongPress();
+      return null;
+    }
+
+    return longPressTimer;
+  }
+
+  /**
+   * Handles mouse down interactions, including context menu logic and wormhole creation.
+   */
+  static handleMouseDown(
+    event: MouseEvent,
+    params: {
+      contextMenu: ContextMenuState;
+      contextMenuElement?: HTMLDivElement;
+      mouseInteractionEnabled: boolean;
+      wormhole: WormholePair | null;
+      mouse: MouseState;
+      onFirstInteraction: () => void;
+      onShowContextMenu: (x: number, y: number) => ContextMenuState;
+      onCloseContextMenu: () => void;
+      onCreateWormhole: () => void;
+    },
+  ): { contextMenu: ContextMenuState; mouseIsDown: boolean } {
+    if (event.button === 2) {
+      event.preventDefault();
+      return { contextMenu: params.onShowContextMenu(event.clientX, event.clientY), mouseIsDown: false };
+    }
+
+    if (params.contextMenu.visible) {
+      const menuElement = params.contextMenuElement;
+      const eventTarget = event.target as Node | null;
+      if (!(menuElement && eventTarget && menuElement.contains(eventTarget))) {
+        params.onCloseContextMenu();
+      } else {
+        return { contextMenu: params.contextMenu, mouseIsDown: false };
+      }
+    }
+
+    params.onFirstInteraction();
+
+    if (event.button === 0) {
+      if (params.mouseInteractionEnabled) {
+        return { contextMenu: params.contextMenu, mouseIsDown: true };
+      }
+      if (!params.wormhole) {
+        params.onCreateWormhole();
+      }
+    }
+
+    return { contextMenu: params.contextMenu, mouseIsDown: false };
+  }
+
+  /**
+   * Handles touch start logic for mobile interactions.
+   */
+  static handleTouchStart(
+    event: TouchEvent,
+    params: {
+      canvas: HTMLCanvasElement;
+      renderScale: number;
+      isMobile: boolean;
+      mobileMenuVisible: boolean;
+      contextMenu: ContextMenuState;
+      mouseInteractionEnabled: boolean;
+      mouse: MouseState;
+      wormhole: WormholePair | null;
+      onFirstInteraction: () => void;
+      onCloseContextMenu: () => void;
+      onCloseMobileMenu: () => void;
+      onShowContextMenu: (x: number, y: number) => ContextMenuState;
+      onCreateWormhole: () => void;
+      onShipTap: () => void;
+    },
+  ): {
+    contextMenu: ContextMenuState;
+    mobileMenuVisible: boolean;
+    mouseIsDown: boolean;
+    longPressTimer: ReturnType<typeof setTimeout> | null;
+    touchStartPosition: Vector2D | null;
+  } {
+    if (!params.isMobile) {
+      return {
+        contextMenu: params.contextMenu,
+        mobileMenuVisible: params.mobileMenuVisible,
+        mouseIsDown: params.mouse.isDown,
+        longPressTimer: null,
+        touchStartPosition: null,
+      };
+    }
+
+    params.onFirstInteraction();
+
+    const rect = params.canvas.getBoundingClientRect();
+    const touch = event.touches[0];
+    const touchX = touch.clientX - rect.left;
+    const touchY = touch.clientY - rect.top;
+    params.mouse.pos.x = touchX / params.renderScale;
+    params.mouse.pos.y = touchY / params.renderScale;
+
+    if (params.mobileMenuVisible) {
+      const menuElement = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (menuElement && (menuElement.closest('.mobile-menu') || menuElement.classList.contains('mobile-menu'))) {
+        event.preventDefault();
+        return {
+          contextMenu: params.contextMenu,
+          mobileMenuVisible: params.mobileMenuVisible,
+          mouseIsDown: params.mouse.isDown,
+          longPressTimer: null,
+          touchStartPosition: null,
+        };
+      }
+
+      params.onCloseMobileMenu();
+      params.onShipTap();
+      return {
+        contextMenu: params.contextMenu,
+        mobileMenuVisible: false,
+        mouseIsDown: params.mouse.isDown,
+        longPressTimer: null,
+        touchStartPosition: null,
+      };
+    }
+
+    if (!params.contextMenu.visible) {
+      params.onShipTap();
+    }
+
+    if (params.mouseInteractionEnabled) {
+      const { timer, startPosition } = this.setupLongPress(
+        touch,
+        rect,
+        params.renderScale,
+        GAME_CONSTANTS.LONG_PRESS_DURATION,
+        (x, y) => {
+          event.preventDefault();
+          return params.onShowContextMenu(x, y);
+        },
+      );
+
+      return {
+        contextMenu: params.contextMenu,
+        mobileMenuVisible: params.mobileMenuVisible,
+        mouseIsDown: true,
+        longPressTimer: timer,
+        touchStartPosition: startPosition,
+      };
+    }
+
+    if (!params.wormhole) {
+      params.onCreateWormhole();
+    }
+
+    return {
+      contextMenu: params.contextMenu,
+      mobileMenuVisible: params.mobileMenuVisible,
+      mouseIsDown: params.mouse.isDown,
+      longPressTimer: null,
+      touchStartPosition: null,
+    };
+  }
   /**
    * Handles ship control toggle (P key)
    */
