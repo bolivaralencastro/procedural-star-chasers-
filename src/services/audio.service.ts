@@ -60,7 +60,7 @@ export class AudioService {
 
   private getSoundUrl(relativePath: string): string {
     // Return simple relative path and let the browser resolve it against <base href>
-    return \`assets/sounds/\${relativePath}\`;
+    return `assets/sounds/${relativePath}`;
   }
 
   private loadSounds() {
