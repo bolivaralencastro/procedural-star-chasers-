@@ -2,9 +2,7 @@ import { Vector2D } from '../../models/vector2d';
 import { Ship, ShipState } from '../../models/ship';
 import { Asteroid } from '../../models/game-entities';
 import { RadioContext } from '../../services/radio-chatter.service';
-import { AsteroidManager } from './asteroid-manager';
 import { CanvasManager } from './canvas-manager';
-import { CollisionManager } from './collision-manager';
 import { GAME_CONSTANTS } from './game-constants';
 import { GameInitializationManager } from './game-initialization-manager';
 import { GameStateManager } from './game-state-manager';
@@ -13,32 +11,45 @@ import { ParticleEffectsManager } from './particle-effects-manager';
 import { ProjectileManager } from './projectile-manager';
 import { RadioManager } from './radio-manager';
 import { ShipBehaviorManager } from './ship-behavior-manager';
-import { ShipUpdateManager } from './ship-update-manager';
 import { StarEventManager } from './star-event-manager';
 import type { StarChasersEngine } from './star-chasers.engine';
 import { WormholeManager } from './wormhole-manager';
 import { renderGame } from './rendering-adapter';
-import { scheduleNextStar, updateTargetStar } from './target-star-adapter';
+import { scheduleNextStar } from './target-star-adapter';
+import { AudioLoopCoordinator } from './audio-loop-coordinator';
+import { EventLoopCoordinator } from './event-loop-coordinator';
+import { EntityUpdateCoordinator } from './entity-update-coordinator';
 
 export class EngineUpdater {
-  private timeSinceLastEventCheck = 0;
+  private readonly audioCoordinator: AudioLoopCoordinator;
+  private readonly eventCoordinator: EventLoopCoordinator;
+  private readonly entityCoordinator: EntityUpdateCoordinator;
 
-  constructor(private readonly engine: StarChasersEngine) {}
+  constructor(private readonly engine: StarChasersEngine) {
+    this.audioCoordinator = new AudioLoopCoordinator(engine);
+    this.eventCoordinator = new EventLoopCoordinator(engine, {
+      enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
+      getRandomActiveShip: this.getRandomActiveShip.bind(this),
+    });
+    this.entityCoordinator = new EntityUpdateCoordinator(engine, {
+      createStarExplosion: this.createStarExplosion.bind(this),
+      spawnStarParticle: this.spawnStarParticle.bind(this),
+      enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
+      getRandomActiveShip: this.getRandomActiveShip.bind(this),
+      createScoreTooltip: this.createScoreTooltip.bind(this),
+      applyManualControls: this.applyManualControls.bind(this),
+      startManualReload: this.startManualReload.bind(this),
+      handleShipUpdate: this.handleShipUpdate.bind(this),
+      lerp: this.lerp.bind(this),
+      normalizeAngle: this.normalizeAngle.bind(this),
+      lerpAngle: this.lerpAngle.bind(this),
+      maybeTriggerProximityChatter: this.maybeTriggerProximityChatter.bind(this),
+    });
+  }
 
   update() {
     const deltaTime = 16.67;
-    this.timeSinceLastEventCheck += deltaTime;
-    if (this.timeSinceLastEventCheck > this.engine.EVENT_CHECK_INTERVAL) {
-      this.checkForAsteroidEvent();
-      this.timeSinceLastEventCheck = 0;
-    }
-
-    if (this.engine.gameMode === 'normal') {
-      updateTargetStar(this.engine);
-    } else {
-      this.engine.targetStar.exists = false;
-    }
-
+    this.eventCoordinator.handleEvents(deltaTime);
     this.updateGameSounds();
     this.updateWormhole();
     this.updateProjectiles();
@@ -97,66 +108,39 @@ export class EngineUpdater {
   }
 
   updateParticles() {
-    ParticleEffectsManager.updateParticles(this.engine.starParticles);
+    this.entityCoordinator.updateParticles();
   }
 
   updateExplosionParticles() {
-    ParticleEffectsManager.updateExplosionParticles(this.engine.explosionParticles);
+    this.entityCoordinator.updateExplosionParticles();
   }
 
   updateScoreTooltips() {
-    StarEventManager.updateScoreTooltips(this.engine.scoreTooltips, this.engine.ships);
+    this.entityCoordinator.updateScoreTooltips();
   }
 
   updateNebulas() {
-    GameStateManager.updateNebulas(this.engine.nebulas, this.engine.worldWidth, this.engine.worldHeight);
+    this.entityCoordinator.updateNebulas();
   }
 
   updateProjectiles() {
-    ProjectileManager.updateProjectiles(
-      this.engine.projectiles,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.targetStar,
-      this.engine.ships,
-      this.createStarExplosion.bind(this),
-      this.spawnStarParticle.bind(this)
-    );
+    this.entityCoordinator.updateProjectiles();
   }
 
   updateAsteroids() {
-    const { updatedAsteroids, collectedParticles, collectedTooltips } = AsteroidManager.updateAsteroids(
-      this.engine.asteroids,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.projectiles,
-      this.engine.ships,
-      this.engine.mouse,
-      this.engine.wormhole,
-      this.engine.renderScale,
-      this.createStarExplosion.bind(this)
-    );
-
-    this.engine.asteroids = updatedAsteroids;
-    this.engine.explosionParticles.push(...collectedParticles);
-    this.engine.scoreTooltips.push(...collectedTooltips);
+    this.entityCoordinator.updateAsteroids();
   }
 
   updatePhilosophicalChatter() {
-    this.engine.philosophicalChatterNextTime = RadioManager.maybePhilosophicalChatter(
-      this.engine.ships,
-      this.engine.philosophicalChatterNextTime,
-      this.enqueueRadioMessage.bind(this),
-      this.getRandomActiveShip.bind(this)
-    );
+    this.entityCoordinator.updatePhilosophicalChatter();
   }
 
   updateRadioBubbles() {
-    RadioManager.updateRadioBubbles(this.engine.radioBubbles, this.engine.ships);
+    this.entityCoordinator.updateRadioBubbles();
   }
 
   updateShipCollisions() {
-    CollisionManager.updateShipCollisions(this.engine.ships, this.maybeTriggerProximityChatter.bind(this));
+    this.entityCoordinator.updateShipCollisions();
   }
 
   triggerLaunchChatter(ship: Ship) {
@@ -164,77 +148,15 @@ export class EngineUpdater {
   }
 
   updateWormhole() {
-    const result = WormholeManager.updateWormhole(this.engine.wormhole, this.engine.worldWidth, this.engine.worldHeight, this.engine.ships);
-    this.engine.wormhole = result.wormhole;
-
-    if (result.wormhole && result.shuffled) {
-      this.enqueueRadioMessage(result.shuffled, 'wormhole_shuffle');
-      this.engine.deps.audioService.playSound('warp');
-    }
+    this.entityCoordinator.updateWormhole();
   }
 
   updateGameSounds() {
-    const isOrbiting = this.engine.ships.some(s => s.state === 'orbiting');
-    const orbitingShip = this.engine.ships.find(s => s.state === 'orbiting');
-    const orbitingSpeed = orbitingShip ? orbitingShip.orbitalSpeed : undefined;
-
-    const isHunting = this.engine.gameMode === 'normal' && this.engine.ships.some(s => s.state === 'hunting');
-    const isCoop =
-      this.engine.gameMode === 'asteroid_event' &&
-      this.engine.ships.some(s => s.state !== 'paralyzed' && s.state !== 'orbiting');
-    const anyShipCelebrating = this.engine.ships.some(s => s.state === 'celebrating');
-
-    this.engine.deps.audioService.updateGameSounds(isOrbiting, isHunting, isCoop, orbitingSpeed);
-    this.engine.deps.audioService.updateBackgroundMusic(isHunting, isCoop, anyShipCelebrating);
+    this.audioCoordinator.updateAudio();
   }
 
   updateShip(ship: Ship) {
-    if (ship.state === 'paralyzed') {
-      return;
-    }
-
-    const distanceToStar = this.engine.targetStar.exists
-      ? Vector2D.distance(ship.position, this.engine.targetStar.position)
-      : Infinity;
-    const helpers = {
-      getRandomActiveShip: this.getRandomActiveShip.bind(this),
-      createScoreTooltip: this.createScoreTooltip.bind(this),
-      getStarExists: () => this.engine.targetStar.exists,
-      spawnStarParticle: this.spawnStarParticle.bind(this),
-      createStarExplosion: this.createStarExplosion.bind(this),
-      enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
-      applyManualControls: this.applyManualControls.bind(this),
-      startManualReload: this.startManualReload.bind(this),
-    };
-    const lerpHelpers = {
-      lerp: this.lerp.bind(this),
-      normalizeAngle: this.normalizeAngle.bind(this),
-      lerpAngle: this.lerpAngle.bind(this),
-    };
-
-    const updated = ShipUpdateManager.updateShip(
-      ship,
-      this.engine.mouse,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.targetStar,
-      distanceToStar,
-      this.engine.TAIL_LENGTH,
-      this.engine.SPEED_INCREMENT_PER_STAR,
-      this.engine.MAX_SPEED_BONUS,
-      this.engine.isMobile(),
-      this.engine.renderScale,
-      this.engine.gameMode,
-      this.engine.controlledShipId,
-      this.engine.mouseInteractionEnabled(),
-      helpers,
-      lerpHelpers,
-      this.engine.deps.audioService
-    );
-
-    if (updated) {
-      this.handleShipUpdate(ship, updated);
-    }
+    this.entityCoordinator.updateShip(ship);
   }
 
   handleShipUpdate(ship: Ship, state: ShipState) {
@@ -360,41 +282,30 @@ export class EngineUpdater {
   }
 
   checkForAsteroidEvent() {
-    if (this.engine.gameMode !== 'normal') {
-      return;
-    }
-
-    const totalScore = this.engine.ships.reduce((sum, ship) => sum + ship.score, 0);
-    if (totalScore >= this.engine.eventTriggerScore && Math.random() < GAME_CONSTANTS.EVENT_TRIGGER_CHANCE) {
-      this.engine.eventTriggerScore += 2;
-      this.triggerAsteroidEvent();
-    }
+    this.eventCoordinator.checkForAsteroidEvent();
   }
 
   triggerAsteroidEvent() {
-    this.engine.gameMode = 'asteroid_event';
-    this.engine.targetStar.exists = false;
-    this.enqueueRadioMessage(this.getRandomActiveShip(), 'asteroid_warning');
-    this.engine.deps.audioService.playSound('alert');
-    this.spawnAsteroid('large');
-    this.spawnAsteroid('medium');
-    this.spawnAsteroid('small');
+    this.eventCoordinator.triggerAsteroidEvent();
   }
 
   spawnAsteroid(size: Asteroid['size'], position?: Vector2D, velocity?: Vector2D) {
-    this.engine.asteroids.push(
-      AsteroidManager.spawnAsteroid(size, this.engine.worldWidth, this.engine.worldHeight, position, velocity)
-    );
+    this.eventCoordinator.spawnAsteroid(size, position, velocity);
   }
 
   maybeEndAsteroidEvent() {
-    const allDestroyedOrExpired = this.engine.asteroids.every(ast => AsteroidManager.isAsteroidGone(ast));
-    if (allDestroyedOrExpired) {
-      this.engine.eventTriggerScore += 2;
-      this.engine.gameMode = 'normal';
-      scheduleNextStar(this.engine);
-      this.enqueueRadioMessage(this.getRandomActiveShip(), 'asteroid_clear');
-    }
+    this.eventCoordinator.maybeEndAsteroidEvent();
+  }
+
+  maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
+    RadioManager.maybeTriggerProximityChatter(
+      shipA,
+      shipB,
+      distance,
+      combinedRadius,
+      this.engine.proximityCooldowns,
+      this.enqueueRadioMessage.bind(this)
+    );
   }
 
   maybePlayStarryEyeChatter(ship: Ship) {
