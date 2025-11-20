@@ -31,6 +31,9 @@ export function renderGame(engine: StarChasersEngine) {
       asteroids: engine.asteroids,
       radioBubbles: engine.radioBubbles,
       constellationMode: engine.constellationMode,
+      controlledShipId: engine.controlledShipId,
+      mouseInteractionEnabled: engine.mouseInteractionEnabled(),
+      gameMode: engine.gameMode,
     },
     {
       drawConstellation: ConstellationManager.drawConstellation,
