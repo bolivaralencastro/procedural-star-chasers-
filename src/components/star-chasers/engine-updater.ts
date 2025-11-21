@@ -58,6 +58,7 @@ export class EngineUpdater {
     const deltaTime = 16.67;
     this.eventCoordinator.handleEvents(deltaTime);
     this.updateGameSounds();
+    this.updateRescueAttempts(); // Process rescue attempts before other updates
     this.updateWormhole();
     this.updateProjectiles();
     this.updateAsteroids();
@@ -149,6 +150,34 @@ export class EngineUpdater {
 
   triggerLaunchChatter(ship: Ship) {
     this.enqueueRadioMessage(ship, 'launch');
+  }
+
+  /**
+   * Process rescue attempts by all non-paralyzed ships for paralyzed allies
+   * This ensures paralyzed ships can be rescued even if they're skipped in main updates
+   */
+  updateRescueAttempts(): void {
+    const paralyzedShips = this.engine.ships.filter(s => s.state === 'paralyzed');
+    if (paralyzedShips.length === 0) return;
+
+    const rescueShips = this.engine.ships.filter(s => s.state !== 'paralyzed' && s.score > 0);
+    if (rescueShips.length === 0) return;
+
+    for (const rescueShip of rescueShips) {
+      for (const paralyzedShip of paralyzedShips) {
+        const distance = Vector2D.distance(rescueShip.position, paralyzedShip.position);
+        if (distance < rescueShip.radius + paralyzedShip.radius) {
+          // Rescue successful
+          rescueShip.score--;
+          paralyzedShip.state = this.isShipCurrentlyControlled(paralyzedShip) ? 'controlled' : 'idle';
+          paralyzedShip.paralyzeTimer = 0;
+          this.createStarExplosion(rescueShip.position, 20);
+          this.engine.deps.audioService.playSound('rescue');
+          this.enqueueRadioMessage(paralyzedShip, 'rescue');
+          break; // This paralyzed ship is rescued, move to next one
+        }
+      }
+    }
   }
 
   updateWormhole() {

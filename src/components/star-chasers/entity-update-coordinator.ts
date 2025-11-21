@@ -107,7 +107,14 @@ export class EntityUpdateCoordinator {
   }
 
   updateShip(ship: Ship): void {
+    // Handle paralyzed state - only need to track timer until it expires
+    // This is a fallback in case a paralyzed ship doesn't get into the main update
     if (ship.state === 'paralyzed') {
+      ship.paralyzeTimer -= 16.67;
+      if (ship.paralyzeTimer <= 0) {
+        ship.state = 'idle';
+        ship.paralyzeTimer = 0;
+      }
       return;
     }
 
