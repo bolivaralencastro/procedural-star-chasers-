@@ -108,4 +108,44 @@ export const BLUE_LINES: Record<RadioContext, string[]> = {
     'O universo é determinístico, mas imprevisível. Que fascínio.',
     'Cada cálculo é uma oração. A matemática é nossa religião.'
   ],
+  hunting: [
+    'Cálculos indicam: estrela à vista!',
+    'Coordenadas confirmadas, alvo adquirido!',
+    'Análise completa, iniciando aproximação!'
+  ],
+  star_spawn: [
+    'Nova anomalia detectada! Estrela materializada!',
+    'Leitura positiva! Nova fonte energética!',
+    'Dados confirmam: estrela gerada!'
+  ],
+  asteroid_warning: [
+    'Alerta! Objetos não identificados em rota de colisão!',
+    'Sensores detectam: perigo iminente!',
+    'Análise de risco: asteróides aproximando-se!'
+  ],
+  asteroid_clear: [
+    'Ambiente normalizado! Ameaça neutralizada!',
+    'Varredura completa: área segura!',
+    'Dados confirmam: perigo eliminado!'
+  ],
+  wormhole_shuffle: [
+    'Anomalia espacial detectada! Buraco de minhoca ativo!',
+    'Singularidade identificada! Preparação para salto!',
+    'Portal dimensional aberto! Cálculos em andamento!'
+  ],
+  supernova: [
+    'Energia crítica! Supernova iminente!',
+    'Leitura máxima! Explosão calculada!',
+    'Poder estelar ao máximo! Dados registrados!'
+  ],
+  fire: [
+    'Projétil calculado e lançado!',
+    'Trajetória computada! Fogo!',
+    'Sistemas de disparo ativos!'
+  ],
+  chasing: [
+    'Trajetória calculada! Perseguição otimizada!',
+    'Seguindo alvo com precisão!',
+    'Rota de interceptação confirmada!'
+  ],
 };

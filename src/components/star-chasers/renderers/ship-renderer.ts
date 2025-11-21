@@ -1,5 +1,5 @@
-import { Vector2D } from '../../models/vector2d';
-import { Ship } from '../../models/ship';
+import { Vector2D } from '../../../models/vector2d';
+import { Ship } from '../../../models/ship';
 
 export function drawShipTail(ctx: CanvasRenderingContext2D, ship: Ship): void {
   ctx.save();

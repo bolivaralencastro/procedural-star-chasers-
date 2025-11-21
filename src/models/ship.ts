@@ -1,7 +1,7 @@
 import { ShipColor, ShipPersonality } from './ship-personas';
 import { Vector2D } from './vector2d';
 
-export type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed' | 'controlled' | 'forming';
+export type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed' | 'controlled' | 'forming' | 'chasing';
 
 export interface Ship {
   id: number;

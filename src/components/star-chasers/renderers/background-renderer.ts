@@ -1,4 +1,4 @@
-import { Asteroid, BackgroundStar, Nebula, TargetStar } from '../../models/game-entities';
+import { Asteroid, BackgroundStar, Nebula, TargetStar } from '../../../models/game-entities';
 
 export function drawBackgroundStars(
   ctx: CanvasRenderingContext2D,

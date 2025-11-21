@@ -194,4 +194,20 @@ export class RadioManager {
     const [min, max] = GAME_CONSTANTS.SHIP_CHATTER_DELAY_RANGE;
     return min + Math.random() * (max - min);
   }
+
+  /**
+   * Maybe play starry eye chatter
+   */
+  static maybePlayStarryEyeChatter(
+    ship: Ship,
+    targetStar: { exists: boolean; position: Vector2D },
+    enqueueFn: (ship: Ship, context: RadioContext) => boolean
+  ): void {
+    if (!targetStar.exists) return;
+    
+    const distance = Vector2D.distance(ship.position, targetStar.position);
+    if (distance < 200 && Math.random() < 0.01) {
+      enqueueFn(ship, 'hunting');
+    }
+  }
 }

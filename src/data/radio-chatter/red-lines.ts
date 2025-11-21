@@ -111,4 +111,44 @@ export const RED_LINES: Record<RadioContext, string[]> = {
     'No fim, todas as estrelas se apagam. Mas eu brilho enquanto posso.',
     'Competir é existir. No universo, só os fortes deixam rastros.'
   ],
+  hunting: [
+    'Foco total! Estrela detectada, vou pegar!',
+    'Mira ajustada, estrela no radar!',
+    'Caça iniciada, velocidade máxima!'
+  ],
+  star_spawn: [
+    'Nova estrela! Preparem-se!',
+    'Alvo avistado, vamos nessa!',
+    'Estrela fresca, hora da ação!'
+  ],
+  asteroid_warning: [
+    'Asteróides à vista! Cuidado!',
+    'Perigo! Detritos cósmicos se aproximando!',
+    'Alerta vermelho! Meteoros em rota de colisão!'
+  ],
+  asteroid_clear: [
+    'Limpamos o caminho! Vamos voltar à caça!',
+    'Perigo eliminado, estrelas à vista!',
+    'Asteróides destruídos, missão cumprida!'
+  ],
+  wormhole_shuffle: [
+    'Buraco de minhoca! Prepare-se para o salto!',
+    'Viagem dimensional detectada!',
+    'Wormhole ativo! Segura firme!'
+  ],
+  supernova: [
+    'Supernova carregada! Cuidado!',
+    'Explosão massiva! Todos afastem-se!',
+    'Poder estelar liberado!'
+  ],
+  fire: [
+    'Fogo! Projétil disparado!',
+    'Atirando! Cuidado!',
+    'Laser ativado!'
+  ],
+  chasing: [
+    'Perseguindo a estrela!',
+    'Na cola do alvo!',
+    'Não vai escapar!'
+  ],
 };

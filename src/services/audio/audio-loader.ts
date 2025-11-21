@@ -127,7 +127,7 @@ export class AudioLoader {
           audio.volume = asset.initialVolume;
           pool.push(audio);
         }
-        this.soundPools.set(asset.name, { pool, index: 0 });
+        this.soundPools.set(asset.name as PooledSoundName, { pool, index: 0 });
       }
     });
   }
