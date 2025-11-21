@@ -82,7 +82,7 @@
     <!-- Security & Performance Headers (for server configuration) -->
     <!-- These should ideally be set via HTTP headers, but can be meta tags as fallback -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdn.tailwindcss.com https://connect.facebook.net 'unsafe-inline'; style-src 'self' https://cdn.tailwindcss.com 'unsafe-inline';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' https://cdn.tailwindcss.com https://connect.facebook.net https://challenges.cloudflare.com 'unsafe-inline'; style-src 'self' https://cdn.tailwindcss.com 'unsafe-inline'; frame-src 'self' https://challenges.cloudflare.com;" />
     
     <base href="./" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
