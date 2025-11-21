@@ -56,7 +56,7 @@ export class AppComponent implements OnDestroy {
         
         // Set mouse interaction reference for about dialog
         if (this.aboutDialog && this.starChasers) {
-          this.aboutDialog.mouseInteractionEnabled = this.starChasers.mouseInteractionEnabled;
+          this.aboutDialog.inputDisabled = this.starChasers.inputDisabled;
         }
         
         this.checkMobile();

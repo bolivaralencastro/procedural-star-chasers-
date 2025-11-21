@@ -79,6 +79,7 @@ export class StarChasersEngine {
   public contextMenu: ContextMenuState = { visible: false, x: 0, y: 0 };
   public mobileMenuVisible = signal(false);
   public mouseInteractionEnabled = signal(true);
+  public inputDisabled = signal(false);
   public isMobile = signal(false);
 
   public controlledShipId: number | null = null;

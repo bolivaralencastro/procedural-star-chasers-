@@ -38,6 +38,7 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
 
   public mobileMenuVisible = this.engine.mobileMenuVisible;
   public mouseInteractionEnabled = this.engine.mouseInteractionEnabled;
+  public inputDisabled = this.engine.inputDisabled;
   public isMobile = this.engine.isMobile;
 
   @HostListener('window:resize')

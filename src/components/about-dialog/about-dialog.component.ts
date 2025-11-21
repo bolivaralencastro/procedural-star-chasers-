@@ -103,7 +103,7 @@ import { WritableSignal } from '@angular/core';
 export class AboutDialogComponent implements OnDestroy {
   isOpen = signal(false);
 
-  @Input() mouseInteractionEnabled?: WritableSignal<boolean>;
+  @Input() inputDisabled?: WritableSignal<boolean>;
 
   private handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && this.isOpen()) {
@@ -113,16 +113,16 @@ export class AboutDialogComponent implements OnDestroy {
 
   open() {
     this.isOpen.set(true);
-    if (this.mouseInteractionEnabled) {
-      this.mouseInteractionEnabled.set(false);
+    if (this.inputDisabled) {
+      this.inputDisabled.set(true);
     }
     document.addEventListener('keydown', this.handleKeyDown);
   }
 
   close() {
     this.isOpen.set(false);
-    if (this.mouseInteractionEnabled) {
-      this.mouseInteractionEnabled.set(true);
+    if (this.inputDisabled) {
+      this.inputDisabled.set(false);
     }
     document.removeEventListener('keydown', this.handleKeyDown);
   }

@@ -100,6 +100,10 @@ export class EngineInteractions {
   }
 
   handleMouseDown(event: MouseEvent) {
+    if (this.engine.inputDisabled()) {
+      return;
+    }
+
     const result = EventHandlersManager.handleMouseDown(event, {
       contextMenu: this.engine.contextMenu,
       contextMenuElement: this.engine.getContextMenuRef?.()?.nativeElement,
@@ -120,6 +124,10 @@ export class EngineInteractions {
   }
 
   handleTouchStart(event: TouchEvent) {
+    if (this.engine.inputDisabled()) {
+      return;
+    }
+
     const result = EventHandlersManager.handleTouchStart(event, {
       canvas: this.engine.getCanvasRef().nativeElement,
       renderScale: this.engine.renderScale,

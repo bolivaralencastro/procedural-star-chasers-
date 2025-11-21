@@ -34,6 +34,7 @@ export function renderGame(engine: StarChasersEngine) {
       constellationMode: engine.constellationMode,
       controlledShipId: engine.controlledShipId,
       mouseInteractionEnabled: engine.mouseInteractionEnabled(),
+      inputDisabled: engine.inputDisabled(),
       gameMode: engine.gameMode,
     },
     {

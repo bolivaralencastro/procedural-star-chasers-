@@ -55,6 +55,7 @@ interface RenderData {
   constellationMode: boolean;
   controlledShipId: number | null;
   mouseInteractionEnabled: boolean;
+  inputDisabled: boolean;
   gameMode: 'normal' | 'asteroid_event';
 }
 
@@ -86,6 +87,7 @@ export class RenderingManager {
       constellationMode,
       controlledShipId,
       mouseInteractionEnabled,
+      inputDisabled,
       gameMode,
     } = data;
 
@@ -124,16 +126,18 @@ export class RenderingManager {
     RenderingManager.drawScoreTooltips(ctx, scoreTooltips);
     RenderingManager.drawRadioBubbles(ctx, radioBubbles, isMobile);
 
-    const allowMouseInteraction = mouseInteractionEnabled && !mobileMenuVisible && !contextMenuVisible;
-    RenderingManager.drawCursor(
-      ctx,
-      mouse.pos,
-      mouse.orbitRadius,
-      mouse.isDown,
-      allowMouseInteraction,
-      controlledShipId,
-      ships
-    );
+    if (!inputDisabled) {
+      const allowMouseInteraction = mouseInteractionEnabled && !mobileMenuVisible && !contextMenuVisible;
+      RenderingManager.drawCursor(
+        ctx,
+        mouse.pos,
+        mouse.orbitRadius,
+        mouse.isDown,
+        allowMouseInteraction,
+        controlledShipId,
+        ships
+      );
+    }
 
     ctx.restore();
   }
