@@ -107,4 +107,41 @@ export class WormholeManager {
       }
     }
   }
+
+  /**
+   * Creates a wormhole (wrapper for create method)
+   */
+  static createWormhole(
+    mouse: { x: number; y: number },
+    worldWidth: number,
+    worldHeight: number
+  ): WormholePair {
+    return this.create(new Vector2D(mouse.x, mouse.y), worldWidth, worldHeight);
+  }
+
+  /**
+   * Updates a wormhole and handles entity shuffling
+   */
+  static updateWormhole(
+    wormhole: WormholePair,
+    ships: Ship[],
+    onTeleport: (position: Vector2D) => void
+  ): { active: boolean; shuffled: Ship[] } {
+    const active = this.update(wormhole);
+    const shuffled: Ship[] = [];
+    
+    if (active) {
+      ships.forEach(ship => {
+        const beforePos = ship.position.clone();
+        this.processInteraction(ship, wormhole, onTeleport);
+        const afterPos = ship.position.clone();
+        
+        if (Vector2D.distance(beforePos, afterPos) > 100) {
+          shuffled.push(ship);
+        }
+      });
+    }
+    
+    return { active, shuffled };
+  }
 }

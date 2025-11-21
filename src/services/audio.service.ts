@@ -8,7 +8,7 @@ import {
 } from './audio/audio-loader';
 import { AudioPlayback } from './audio/audio-playback';
 
-export { LoopSoundName, PooledSoundName, SoundName } from './audio/audio-loader';
+export type { LoopSoundName, PooledSoundName, SoundName } from './audio/audio-loader';
 
 @Injectable({
   providedIn: 'root',

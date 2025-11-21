@@ -25,6 +25,13 @@ interface EntityUpdateDependencies {
   normalizeAngle: (angle: number) => number;
   lerpAngle: (a: number, b: number, t: number) => number;
   maybeTriggerProximityChatter: (shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) => void;
+  switchPersonality: (ship: Ship) => void;
+  applyPersonalityBehaviors: (ship: Ship) => void;
+  performBlink: (ship: Ship) => void;
+  performCelebration: (ship: Ship) => void;
+  isShipCurrentlyControlled: (ship: Ship) => boolean;
+  fireProjectile: (ship: Ship) => void;
+  createAfterburnerParticle: (ship: Ship) => void;
 }
 
 export class EntityUpdateCoordinator {
@@ -34,16 +41,20 @@ export class EntityUpdateCoordinator {
   ) {}
 
   updateWormhole(): void {
+    if (!this.engine.wormhole) return;
+    
     const result = WormholeManager.updateWormhole(
       this.engine.wormhole,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.ships
+      this.engine.ships,
+      (position) => this.dependencies.createStarExplosion(position)
     );
-    this.engine.wormhole = result.wormhole;
+    
+    if (!result.active) {
+      this.engine.wormhole = null;
+    }
 
-    if (result.wormhole && result.shuffled) {
-      this.dependencies.enqueueRadioMessage(result.shuffled, 'wormhole_shuffle');
+    if (result.shuffled.length > 0) {
+      this.dependencies.enqueueRadioMessage(result.shuffled[0], 'wormhole_shuffle');
       this.engine.deps.audioService.playSound('warp');
     }
   }
@@ -52,30 +63,17 @@ export class EntityUpdateCoordinator {
     ProjectileManager.updateProjectiles(
       this.engine.projectiles,
       this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.targetStar,
-      this.engine.ships,
-      this.dependencies.createStarExplosion,
-      this.dependencies.spawnStarParticle
+      this.engine.worldHeight
     );
   }
 
   updateAsteroids(): void {
-    const { updatedAsteroids, collectedParticles, collectedTooltips } = AsteroidManager.updateAsteroids(
+    const { destroyedAsteroids, addedParticles, collectedTooltips } = AsteroidManager.updateAsteroids(
       this.engine.asteroids,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.projectiles,
       this.engine.ships,
-      this.engine.mouse,
-      this.engine.wormhole,
-      this.engine.renderScale,
-      this.dependencies.createStarExplosion
+      this.engine.worldWidth,
+      this.engine.worldHeight
     );
-
-    this.engine.asteroids = updatedAsteroids;
-    this.engine.explosionParticles.push(...collectedParticles);
-    this.engine.scoreTooltips.push(...collectedTooltips);
   }
 
   updateParticles(): void {
@@ -91,7 +89,7 @@ export class EntityUpdateCoordinator {
   }
 
   updateNebulas(): void {
-    GameStateManager.updateNebulas(this.engine.nebulas, this.engine.worldWidth, this.engine.worldHeight);
+    GameStateManager.updateNebulas(this.engine.nebulas);
   }
 
   updatePhilosophicalChatter(): void {
@@ -112,49 +110,49 @@ export class EntityUpdateCoordinator {
       return;
     }
 
-    const distanceToStar = this.engine.targetStar.exists
-      ? Vector2D.distance(ship.position, this.engine.targetStar.position)
-      : Infinity;
+    const context = {
+      ships: this.engine.ships,
+      asteroids: this.engine.asteroids,
+      targetStar: this.engine.targetStar,
+      nebulas: this.engine.nebulas,
+      mouse: this.engine.mouse,
+      mouseInteractionEnabled: this.engine.mouseInteractionEnabled(),
+      gameMode: this.engine.gameMode,
+      worldWidth: this.engine.worldWidth,
+      worldHeight: this.engine.worldHeight,
+      formationAssignments: this.engine.formationAssignments,
+      controlledShipId: this.engine.controlledShipId,
+      explosionParticles: this.engine.explosionParticles,
+      activeControlKeys: this.engine.activeControlKeys,
+    };
 
-    const helpers = {
-      getRandomActiveShip: this.dependencies.getRandomActiveShip,
-      createScoreTooltip: this.dependencies.createScoreTooltip,
-      getStarExists: () => this.engine.targetStar.exists,
-      spawnStarParticle: this.dependencies.spawnStarParticle,
+    const callbacks = {
+      switchPersonality: this.dependencies.switchPersonality,
+      applyPersonalityBehaviors: this.dependencies.applyPersonalityBehaviors,
+      performBlink: this.dependencies.performBlink,
+      performCelebration: this.dependencies.performCelebration,
+      isShipCurrentlyControlled: this.dependencies.isShipCurrentlyControlled,
+      fireProjectile: this.dependencies.fireProjectile,
+      createAfterburnerParticle: this.dependencies.createAfterburnerParticle,
       createStarExplosion: this.dependencies.createStarExplosion,
       enqueueRadioMessage: this.dependencies.enqueueRadioMessage,
       applyManualControls: this.dependencies.applyManualControls,
       startManualReload: this.dependencies.startManualReload,
     };
-    const lerpHelpers = {
+
+    const utils = {
       lerp: this.dependencies.lerp,
       normalizeAngle: this.dependencies.normalizeAngle,
       lerpAngle: this.dependencies.lerpAngle,
     };
 
-    const updated = ShipUpdateManager.updateShip(
+    ShipUpdateManager.updateShip(
       ship,
-      this.engine.mouse,
-      this.engine.worldWidth,
-      this.engine.worldHeight,
-      this.engine.targetStar,
-      distanceToStar,
-      this.engine.TAIL_LENGTH,
-      this.engine.SPEED_INCREMENT_PER_STAR,
-      this.engine.MAX_SPEED_BONUS,
-      this.engine.isMobile(),
-      this.engine.renderScale,
-      this.engine.gameMode,
-      this.engine.controlledShipId,
-      this.engine.mouseInteractionEnabled(),
-      helpers,
-      lerpHelpers,
+      context,
+      callbacks,
+      utils,
       this.engine.deps.audioService
     );
-
-    if (updated) {
-      this.dependencies.handleShipUpdate(ship, updated);
-    }
   }
 
   updateShipCollisions(): void {

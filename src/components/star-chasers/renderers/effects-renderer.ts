@@ -1,12 +1,12 @@
-import { Ship } from '../../models/ship';
-import { Vector2D } from '../../models/vector2d';
+import { Ship } from '../../../models/ship';
+import { Vector2D } from '../../../models/vector2d';
 import {
   Particle,
   RadioBubble,
   ScoreTooltip,
   TargetStar,
   WormholePair,
-} from '../../models/game-entities';
+} from '../../../models/game-entities';
 
 export function drawParticles(
   ctx: CanvasRenderingContext2D,

@@ -111,4 +111,44 @@ export const GREEN_LINES: Record<RadioContext, string[]> = {
     'O universo é um jardim. Somos jardineiros, não conquistadores.',
     'A verdadeira força vem da unidade. Divididos, somos vulneráveis.'
   ],
+  hunting: [
+    'Estrela avistada! Vamos trabalhar juntos!',
+    'Alvo detectado, cooperação em ação!',
+    'Unidos pela caça estelar!'
+  ],
+  star_spawn: [
+    'Nova estrela floresceu! Vamos compartilhar!',
+    'Luz nova no horizonte, todos se aproximem!',
+    'Estrela surgiu, hora de colher juntos!'
+  ],
+  asteroid_warning: [
+    'Asteróides! Vamos nos proteger mutuamente!',
+    'Perigo à frente! Formação defensiva!',
+    'Cuidado! Vamos enfrentar isso juntos!'
+  ],
+  asteroid_clear: [
+    'Céu limpo! Podemos respirar aliviados!',
+    'Perigo passou, gratidão a todos!',
+    'Caminho livre, vamos em paz!'
+  ],
+  wormhole_shuffle: [
+    'Portal aberto! Cuidem uns dos outros!',
+    'Wormhole ativo! Mantenham contato!',
+    'Viagem dimensional! Não se percam!'
+  ],
+  supernova: [
+    'Poder estelar! Usem com sabedoria!',
+    'Supernova pronta! Proteção ativada!',
+    'Energia máxima! Cuidado com o ambiente!'
+  ],
+  fire: [
+    'Disparando com precisão!',
+    'Fogo defensivo! Proteção em andamento!',
+    'Tiro certeiro para nossa segurança!'
+  ],
+  chasing: [
+    'Seguindo o alvo com cuidado!',
+    'Perseguição coordenada!',
+    'Vamos alcançá-la juntos!'
+  ],
 };

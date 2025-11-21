@@ -146,4 +146,38 @@ export class GameStateManager {
       }
     }
   }
+
+  /**
+   * Resets constellation mode for all ships
+   */
+  static resetConstellationMode(ships: Ship[], formationAssignments: Map<number, Vector2D>): void {
+    ships.forEach(ship => {
+      if (ship.state === 'forming') {
+        ship.state = 'idle';
+      }
+    });
+    formationAssignments.clear();
+  }
+
+  /**
+   * Recalculates orbit for a ship
+   */
+  static recalculateOrbit(ship: Ship, targetPosition: Vector2D): void {
+    const toTarget = targetPosition.clone().subtract(ship.position);
+    const distance = toTarget.magnitude();
+    
+    if (distance > 0) {
+      ship.orbitAngle = Math.atan2(toTarget.y, toTarget.x);
+    }
+  }
+
+  /**
+   * Handles ship actions (generic handler)
+   */
+  static handleShipAction(ship: Ship, action: { type: string; [key: string]: any }): void {
+    // Generic action handler - can be extended as needed
+    if (action.type === 'idle') {
+      ship.state = 'idle';
+    }
+  }
 }

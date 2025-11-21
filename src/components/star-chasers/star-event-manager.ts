@@ -152,4 +152,43 @@ export class StarEventManager {
       }
     }
   }
+
+  /**
+   * Updates target star animation
+   */
+  static updateTargetStar(targetStar: TargetStar): void {
+    targetStar.pulseAngle += 0.05;
+    
+    if (targetStar.isDespawning) {
+      targetStar.opacity -= 0.02;
+      if (targetStar.opacity <= 0) {
+        targetStar.exists = false;
+      }
+    } else if (targetStar.opacity < 1) {
+      targetStar.opacity += 0.02;
+    }
+    
+    if (!targetStar.isDespawning && Date.now() > targetStar.spawnTime + targetStar.lifetime) {
+      targetStar.isDespawning = true;
+    }
+  }
+
+  /**
+   * Draws star despawning effect
+   */
+  static drawStarDespawning(
+    ctx: CanvasRenderingContext2D,
+    targetStar: TargetStar
+  ): void {
+    if (!targetStar.isDespawning) return;
+    
+    ctx.save();
+    ctx.globalAlpha = targetStar.opacity;
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(targetStar.position.x, targetStar.position.y, targetStar.radius * 1.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 }

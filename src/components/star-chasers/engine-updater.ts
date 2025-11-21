@@ -44,6 +44,13 @@ export class EngineUpdater {
       normalizeAngle: this.normalizeAngle.bind(this),
       lerpAngle: this.lerpAngle.bind(this),
       maybeTriggerProximityChatter: this.maybeTriggerProximityChatter.bind(this),
+      switchPersonality: this.switchPersonality.bind(this),
+      applyPersonalityBehaviors: this.applyPersonalityBehaviors.bind(this),
+      performBlink: this.performBlink.bind(this),
+      performCelebration: this.performCelebration.bind(this),
+      isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
+      fireProjectile: this.fireProjectile.bind(this),
+      createAfterburnerParticle: this.createAfterburnerParticle.bind(this),
     });
   }
 
@@ -190,15 +197,15 @@ export class EngineUpdater {
   }
 
   fireProjectile(ship: Ship) {
-    const projectile = ProjectileManager.fireProjectile(ship, this.engine.renderScale, this.engine.mouse);
+    const projectile = ProjectileManager.fireProjectile(ship, this.engine.renderScale, { x: this.engine.mouse.pos.x, y: this.engine.mouse.pos.y });
     if (projectile) {
       this.engine.projectiles.push(projectile);
-      this.engine.deps.audioService.playSound('fire');
+      this.engine.deps.audioService.playPooledSound('fire');
     }
   }
 
   fireSupernova(ship: Ship) {
-    const supernova = ProjectileManager.fireSupernova(ship, this.engine.renderScale, this.engine.mouse);
+    const supernova = ProjectileManager.fireSupernova(ship, this.engine.renderScale, { x: this.engine.mouse.pos.x, y: this.engine.mouse.pos.y });
     if (!supernova) {
       return;
     }
@@ -223,6 +230,14 @@ export class EngineUpdater {
 
   performCelebration(ship: Ship) {
     ShipBehaviorManager.performCelebration(ship);
+  }
+
+  switchPersonality(ship: Ship) {
+    ShipBehaviorManager.switchPersonality(ship, this.engine.worldWidth, this.engine.worldHeight);
+  }
+
+  applyPersonalityBehaviors(ship: Ship) {
+    ShipBehaviorManager.applyPersonalityBehaviors(ship, this.engine.ships, this.engine.worldWidth, this.engine.worldHeight);
   }
 
   captureStar(winner: Ship) {
@@ -256,19 +271,15 @@ export class EngineUpdater {
       this.engine.radioBubbles,
       this.engine.scoreTooltips,
       this.engine.globalChatterCooldownUntil,
+      this.engine.starCaptureLockUntil,
       this.engine.shipChatterAvailableAt,
-      this.engine.SHIP_CHATTER_DELAY_RANGE,
-      this.getRandomActiveShip.bind(this),
-      this.isShipCurrentlyControlled.bind(this),
-      this.engine.constellationMode,
-      this.engine.mouse,
-      this.engine.renderScale,
-      this.engine.proximityCooldowns,
-      this.engine.mouseInteractionEnabled()
+      this.engine.deps.radioService,
+      this.wrapText.bind(this)
     );
-    this.engine.globalChatterCooldownUntil = result.globalChatterCooldownUntil;
-    this.engine.shipChatterAvailableAt = result.shipChatterAvailableAt;
-    return result.wasEnqueued;
+    this.engine.globalChatterCooldownUntil = result.newGlobalCooldown;
+    this.engine.starCaptureLockUntil = result.newStarCaptureLock;
+    this.engine.shipChatterAvailableAt.set(ship.id, result.newShipDelay);
+    return result.success;
   }
 
   getRandomActiveShip(): Ship {
@@ -311,14 +322,17 @@ export class EngineUpdater {
   maybePlayStarryEyeChatter(ship: Ship) {
     RadioManager.maybePlayStarryEyeChatter(
       ship,
-      this.enqueueRadioMessage.bind(this),
-      this.engine.starCaptureLockUntil,
-      () => (this.engine.starCaptureLockUntil = Date.now() + GAME_CONSTANTS.STAR_CAPTURE_CHOKE_TIME)
+      this.engine.targetStar,
+      this.enqueueRadioMessage.bind(this)
     );
   }
 
   createWormhole() {
-    this.engine.wormhole = WormholeManager.createWormhole(this.engine.mouse, this.engine.worldWidth, this.engine.worldHeight);
+    this.engine.wormhole = WormholeManager.createWormhole(
+      { x: this.engine.mouse.pos.x, y: this.engine.mouse.pos.y },
+      this.engine.worldWidth,
+      this.engine.worldHeight
+    );
     this.engine.deps.audioService.playSound('warp');
   }
 
@@ -328,11 +342,11 @@ export class EngineUpdater {
       blink: () => this.performBlink(ship),
       fire: () => this.fireProjectile(ship),
       shootSupernova: () => this.fireSupernova(ship),
-      recalcOrbit: () =>
-        GameStateManager.recalculateOrbit(ship, this.engine.targetStar.position, this.engine.SPEED_INCREMENT_PER_STAR),
+      recalcOrbit: () => GameStateManager.recalculateOrbit(ship, this.engine.targetStar.position),
     };
 
     GameStateManager.handleShipAction(ship, {
+      type: 'idle',
       mouse: this.engine.mouse,
       targetStar: this.engine.targetStar,
       worldWidth: this.engine.worldWidth,
@@ -368,5 +382,35 @@ export class EngineUpdater {
 
   isShipCurrentlyControlled(ship: Ship): boolean {
     return this.engine.controlledShipId === ship.id;
+  }
+
+  wrapText(text: string, maxWidth: number): string[] {
+    const ctx = this.engine.canvasRef.nativeElement.getContext('2d');
+    if (!ctx) return [text];
+    
+    ctx.save();
+    ctx.font = 'bold 14px "Courier New", monospace';
+
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    words.forEach(word => {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    });
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    ctx.restore();
+    return lines;
   }
 }

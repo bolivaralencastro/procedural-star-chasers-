@@ -5,4 +5,12 @@ export type RadioContext =
   | 'paralyzed'
   | 'rescue'
   | 'launch'
-  | 'philosophical';
+  | 'philosophical'
+  | 'hunting'
+  | 'star_spawn'
+  | 'asteroid_warning'
+  | 'asteroid_clear'
+  | 'wormhole_shuffle'
+  | 'supernova'
+  | 'fire'
+  | 'chasing';

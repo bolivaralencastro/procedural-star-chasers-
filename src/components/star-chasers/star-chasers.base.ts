@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, ElementRef, EventEmitter, HostListener, Input, OnDestroy, Output, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Directive, ElementRef, EventEmitter, HostListener, Input, OnDestroy, Output, ViewChild, inject } from '@angular/core';
 import { AudioService } from '../../services/audio.service';
 import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
 import { RadioChatterService } from '../../services/radio-chatter.service';
@@ -7,6 +7,7 @@ import { StarChasersEngine } from './star-chasers.engine';
 import { Ship } from '../../models/ship';
 import { ContextMenuState, MouseState } from './input-manager';
 
+@Directive()
 export class StarChasersBase implements AfterViewInit, OnDestroy {
   @ViewChild('gameCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('contextMenuEl') contextMenuRef?: ElementRef<HTMLDivElement>;

@@ -2,6 +2,7 @@ import { RenderingManager } from './rendering-manager';
 import { ConstellationManager } from './constellation-manager';
 import { StarEventManager } from './star-event-manager';
 import type { StarChasersEngine } from './star-chasers.engine';
+import type { Ship } from '../../models/ship';
 
 export function renderGame(engine: StarChasersEngine) {
   const ctx = engine.ctx;
@@ -36,7 +37,8 @@ export function renderGame(engine: StarChasersEngine) {
       gameMode: engine.gameMode,
     },
     {
-      drawConstellation: ConstellationManager.drawConstellation,
+      drawConstellation: (ctx: CanvasRenderingContext2D, ships: Ship[]) => 
+        ConstellationManager.drawConstellation(ctx, ships, engine.formationAssignments),
       drawStarDespawning: StarEventManager.drawStarDespawning,
     }
   );

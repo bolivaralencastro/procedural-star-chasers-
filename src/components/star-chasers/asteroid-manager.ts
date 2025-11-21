@@ -106,4 +106,45 @@ export class AsteroidManager {
     if (ship.state === 'paralyzed') return false;
     return Vector2D.distance(asteroid.position, ship.position) < asteroid.radius + ship.radius;
   }
+
+  /**
+   * Spawns an asteroid (wrapper for spawn method)
+   */
+  static spawnAsteroid(
+    size: Asteroid['size'],
+    worldWidth: number,
+    worldHeight: number,
+    asteroids: Asteroid[]
+  ): void {
+    this.spawn(asteroids, size, worldWidth, worldHeight);
+  }
+
+  /**
+   * Checks if an asteroid is gone (off-screen or destroyed)
+   */
+  static isAsteroidGone(asteroid: Asteroid): boolean {
+    // For now, asteroids never naturally leave - they wrap around
+    // This method is for checking if asteroid is destroyed or otherwise removed
+    return false;
+  }
+
+  /**
+   * Updates all asteroids
+   */
+  static updateAsteroids(
+    asteroids: Asteroid[],
+    ships: Ship[],
+    worldWidth: number,
+    worldHeight: number
+  ): { destroyedAsteroids: Asteroid[]; addedParticles: any[]; collectedTooltips: any[] } {
+    asteroids.forEach(asteroid => {
+      this.updateMovement(asteroid, ships, worldWidth, worldHeight);
+    });
+    
+    return {
+      destroyedAsteroids: [],
+      addedParticles: [],
+      collectedTooltips: []
+    };
+  }
 }

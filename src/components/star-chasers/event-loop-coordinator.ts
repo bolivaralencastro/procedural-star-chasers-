@@ -57,9 +57,7 @@ export class EventLoopCoordinator {
   }
 
   spawnAsteroid(size: Asteroid['size'], position?: Vector2D, velocity?: Vector2D): void {
-    this.engine.asteroids.push(
-      AsteroidManager.spawnAsteroid(size, this.engine.worldWidth, this.engine.worldHeight, position, velocity)
-    );
+    AsteroidManager.spawnAsteroid(size, this.engine.worldWidth, this.engine.worldHeight, this.engine.asteroids);
   }
 
   maybeEndAsteroidEvent(): void {

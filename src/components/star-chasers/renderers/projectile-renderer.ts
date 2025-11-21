@@ -1,4 +1,4 @@
-import { Projectile } from '../../models/game-entities';
+import { Projectile } from '../../../models/game-entities';
 
 export function drawProjectiles(
   ctx: CanvasRenderingContext2D,

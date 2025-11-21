@@ -3,6 +3,8 @@
 export const GAME_CONSTANTS = {
   // Event timings
   EVENT_CHECK_INTERVAL: 5000,
+  EVENT_TRIGGER_CHANCE: 0.15,
+  STAR_CAPTURE_CHOKE_TIME: 2000,
   
   // Ship tail and movement
   TAIL_LENGTH: 20,

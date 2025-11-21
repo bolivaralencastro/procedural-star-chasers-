@@ -21,6 +21,14 @@ export class RadioChatterService {
     rescue: [8000, 13000],
     launch: [6000, 11000],
     philosophical: [300000, 600000], // 5-10 minutes for rare philosophical moments
+    hunting: [10000, 15000],
+    star_spawn: [8000, 12000],
+    asteroid_warning: [10000, 15000],
+    asteroid_clear: [8000, 12000],
+    wormhole_shuffle: [9000, 14000],
+    supernova: [12000, 18000],
+    fire: [5000, 8000],
+    chasing: [10000, 15000],
   };
 
   private readonly linePools: LinePools = {

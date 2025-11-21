@@ -222,7 +222,7 @@ export class EngineInteractions {
       this.engine.formationAssignments,
       this.engine.worldWidth,
       this.engine.worldHeight,
-      this.engine.mouse,
+      { x: this.engine.mouse.pos.x, y: this.engine.mouse.pos.y },
       this.engine.deps.constellationService
     );
   }

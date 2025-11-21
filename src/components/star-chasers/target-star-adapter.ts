@@ -37,32 +37,18 @@ export function despawnTargetStar(engine: StarChasersEngine) {
 }
 
 export function spawnTargetStar(engine: StarChasersEngine) {
-  const { position, velocity, acceleration, radius, lifetime } = GameStateManager.spawnTargetStar(
+  GameStateManager.spawnTargetStar(
+    engine.targetStar,
+    engine.ships,
     engine.worldWidth,
     engine.worldHeight
   );
-
-  engine.targetStar = {
-    position,
-    velocity,
-    acceleration,
-    radius,
-    exists: true,
-    isDespawning: false,
-    pulseAngle: 0,
-    opacity: 0,
-    spawnTime: Date.now(),
-    lifetime,
-  };
 
   notifyStarSpawn(engine);
 }
 
 export function scheduleNextStar(engine: StarChasersEngine) {
-  const shipScores = engine.ships.map(s => s.score);
-  const minScore = Math.min(...shipScores);
-  const maxScore = Math.max(...shipScores);
-  engine.nextStarSpawnTime = GameStateManager.scheduleNextStar(minScore, maxScore, engine.targetStar.exists);
+  engine.nextStarSpawnTime = GameStateManager.scheduleNextStar();
 }
 
 export function notifyStarSpawn(engine: StarChasersEngine) {
