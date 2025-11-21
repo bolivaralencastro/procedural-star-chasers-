@@ -56,9 +56,63 @@ export class ProjectileManager {
 
   /**
    * Checks collision between a projectile and an asteroid
+   * Uses continuous collision detection (raycast) to prevent tunneling at high speeds
    */
-  static checkAsteroidCollision(projectile: Projectile, asteroid: Asteroid): boolean {
-    return Vector2D.distance(projectile.position, asteroid.position) < asteroid.radius + 3;
+  static checkAsteroidCollision(
+    projectile: Projectile,
+    asteroid: Asteroid,
+    previousPosition?: Vector2D
+  ): boolean {
+    const PROJECTILE_RADIUS = GAME_CONSTANTS.PROJECTILE_RADIUS;
+    const COLLISION_EPSILON = GAME_CONSTANTS.COLLISION_EPSILON;
+    const radiusMultiplier = GAME_CONSTANTS.ASTEROID_RADIUS_MULTIPLIER[asteroid.size];
+    const effectiveAsteroidRadius = asteroid.radius * radiusMultiplier;
+    const collisionDistance = effectiveAsteroidRadius + PROJECTILE_RADIUS + COLLISION_EPSILON;
+
+    // Discrete collision check: current frame
+    const currentDistance = Vector2D.distance(projectile.position, asteroid.position);
+    if (currentDistance <= collisionDistance) {
+      return true;
+    }
+
+    // Continuous collision detection (CCD): raycast from previous to current position
+    if (previousPosition) {
+      const rayStart = previousPosition;
+      const rayEnd = projectile.position;
+      const closestPoint = this.closestPointOnLineSegmentToPoint(rayStart, rayEnd, asteroid.position);
+      const distanceToRay = Vector2D.distance(closestPoint, asteroid.position);
+      if (distanceToRay <= collisionDistance) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds the closest point on a line segment to a given point
+   * Used for continuous collision detection (CCD)
+   */
+  private static closestPointOnLineSegmentToPoint(
+    lineStart: Vector2D,
+    lineEnd: Vector2D,
+    point: Vector2D
+  ): Vector2D {
+    const dx = lineEnd.x - lineStart.x;
+    const dy = lineEnd.y - lineStart.y;
+    const lengthSquared = dx * dx + dy * dy;
+
+    if (lengthSquared === 0) {
+      return lineStart.clone();
+    }
+
+    let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+    t = Math.max(0, Math.min(1, t));
+
+    return new Vector2D(
+      lineStart.x + t * dx,
+      lineStart.y + t * dy
+    );
   }
 
   /**

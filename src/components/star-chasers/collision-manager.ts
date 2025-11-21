@@ -85,6 +85,7 @@ export class CollisionManager {
 
   /**
    * Updates projectile-to-asteroid collisions and removes destroyed asteroids
+   * Implements continuous collision detection (CCD) to prevent tunneling
    */
   static updateProjectileAsteroidCollisions(
     projectiles: Projectile[],
@@ -92,15 +93,18 @@ export class CollisionManager {
     onAsteroidDestroyed: (asteroid: Asteroid, projectilePosition: Vector2D) => void,
     onProjectileHit: (projectileIndex: number) => void
   ): void {
+    // Store previous positions for CCD
+    const previousPositions = new Map<Projectile, Vector2D>();
+
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
+      const previousPos = previousPositions.get(projectile);
 
       for (let j = asteroids.length - 1; j >= 0; j--) {
         const asteroid = asteroids[j];
 
-        // Check collision: distance between centers < sum of radii
-        const distance = Vector2D.distance(projectile.position, asteroid.position);
-        if (distance < asteroid.radius + 3) { // 3 is approximate projectile radius
+        // Use improved collision detection with CCD
+        if (this.checkProjectileAsteroidCollision(projectile, asteroid, previousPos)) {
           // Collision detected
           onAsteroidDestroyed(asteroid, projectile.position);
           onProjectileHit(i);
@@ -110,6 +114,73 @@ export class CollisionManager {
           break; // Move to next projectile after destroying asteroid
         }
       }
+
+      // Store current position for next frame's CCD
+      previousPositions.set(projectile, projectile.position.clone());
     }
+  }
+
+  /**
+   * Checks collision between projectile and asteroid with improved detection
+   * Includes discrete and continuous (raycast) collision checks
+   */
+  private static checkProjectileAsteroidCollision(
+    projectile: Projectile,
+    asteroid: Asteroid,
+    previousProjectilePosition?: Vector2D
+  ): boolean {
+    const PROJECTILE_RADIUS = 5;
+    const COLLISION_EPSILON = 0.5;
+    const radiusMultipliers: Record<string, number> = {
+      large: 1.0,
+      medium: 1.0,
+      small: 1.4, // 40% increase for small asteroids
+    };
+    const radiusMultiplier = radiusMultipliers[asteroid.size] || 1.0;
+    const effectiveAsteroidRadius = asteroid.radius * radiusMultiplier;
+    const collisionDistance = effectiveAsteroidRadius + PROJECTILE_RADIUS + COLLISION_EPSILON;
+
+    // Discrete collision check
+    const currentDistance = Vector2D.distance(projectile.position, asteroid.position);
+    if (currentDistance <= collisionDistance) {
+      return true;
+    }
+
+    // Continuous collision detection (raycast)
+    if (previousProjectilePosition) {
+      const closestPoint = this.closestPointOnRayToPoint(
+        previousProjectilePosition,
+        projectile.position,
+        asteroid.position
+      );
+      const distanceToRay = Vector2D.distance(closestPoint, asteroid.position);
+      if (distanceToRay <= collisionDistance) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds closest point on a line segment to a given point (for CCD raycast)
+   */
+  private static closestPointOnRayToPoint(
+    rayStart: Vector2D,
+    rayEnd: Vector2D,
+    point: Vector2D
+  ): Vector2D {
+    const dx = rayEnd.x - rayStart.x;
+    const dy = rayEnd.y - rayStart.y;
+    const lengthSquared = dx * dx + dy * dy;
+
+    if (lengthSquared === 0) {
+      return rayStart.clone();
+    }
+
+    let t = ((point.x - rayStart.x) * dx + (point.y - rayStart.y) * dy) / lengthSquared;
+    t = Math.max(0, Math.min(1, t));
+
+    return new Vector2D(rayStart.x + t * dx, rayStart.y + t * dy);
   }
 }

@@ -32,6 +32,15 @@ export const GAME_CONSTANTS = {
     small: 10,
   } as const,
   
+  // Collision detection
+  PROJECTILE_RADIUS: 5, // Effective collision radius for bullets
+  COLLISION_EPSILON: 0.5, // Floating point tolerance
+  ASTEROID_RADIUS_MULTIPLIER: { // Effective collision radius scaling
+    large: 1.0,
+    medium: 1.0,
+    small: 1.4, // Increase small asteroid collision radius by 40% for better hit detection
+  } as const,
+  
   // Asteroid tracking
   ASTEROID_TRACKING_STRENGTH: 0.002,
   ASTEROID_MAX_SPEED: {
