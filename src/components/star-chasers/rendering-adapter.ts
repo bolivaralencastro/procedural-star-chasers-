@@ -19,7 +19,6 @@ export function renderGame(engine: StarChasersEngine) {
       projectiles: engine.projectiles,
       particles: engine.starParticles,
       explosionParticles: engine.explosionParticles,
-      scoreTooltips: engine.scoreTooltips,
       mouse: engine.mouse,
       wormhole: engine.wormhole,
       mobileMenuVisible: engine.mobileMenuVisible(),

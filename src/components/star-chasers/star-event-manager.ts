@@ -1,6 +1,6 @@
 import { Vector2D } from '../../models/vector2d';
 import { Ship } from '../../models/ship';
-import { TargetStar, Nebula, ScoreTooltip, Particle, Asteroid } from '../../models/game-entities';
+import { TargetStar, Nebula, Particle, Asteroid } from '../../models/game-entities';
 import { RadioContext } from '../../services/radio-chatter.service';
 import { AudioService } from '../../services/audio.service';
 import { GAME_CONSTANTS } from './game-constants';
@@ -18,7 +18,6 @@ export class StarEventManager {
     ships: Ship[],
     context: {
       starParticles: Particle[];
-      scoreTooltips: ScoreTooltip[];
       nebulas: Nebula[];
       SPEED_INCREMENT_PER_STAR: number;
       MAX_SPEED_BONUS: number;
@@ -26,7 +25,6 @@ export class StarEventManager {
     callbacks: {
       createStarExplosion: (position: Vector2D, count?: number) => void;
       createNebula: (position: Vector2D) => void;
-      createScoreTooltip: (ship: Ship) => void;
       enqueueRadioMessage: (ship: Ship, context: RadioContext) => boolean;
       scheduleNextStar: () => void;
       isShipCurrentlyControlled: (ship: Ship) => boolean;
@@ -55,7 +53,6 @@ export class StarEventManager {
     }
     
     audioService.playSound('celebrate');
-    callbacks.createScoreTooltip(winner);
     callbacks.enqueueRadioMessage(winner, 'star_capture');
     
     ships.forEach(c => {
@@ -65,40 +62,6 @@ export class StarEventManager {
     });
     
     callbacks.scheduleNextStar();
-  }
-
-  /**
-   * Creates a score tooltip for a ship
-   */
-  static createScoreTooltip(ship: Ship, scoreTooltips: ScoreTooltip[]): void {
-    scoreTooltips.push({
-      shipId: ship.id,
-      text: `${ship.score}`,
-      position: ship.position.clone(),
-      life: 180,
-      maxLife: 180
-    });
-  }
-
-  /**
-   * Updates all score tooltips
-   */
-  static updateScoreTooltips(scoreTooltips: ScoreTooltip[], ships: Ship[]): void {
-    for (let i = scoreTooltips.length - 1; i >= 0; i--) {
-      const tooltip = scoreTooltips[i];
-      tooltip.life--;
-      
-      if (tooltip.life <= 0) {
-        scoreTooltips.splice(i, 1);
-        continue;
-      }
-      
-      const ship = ships.find(c => c.id === tooltip.shipId);
-      if (ship) {
-        tooltip.position.x = ship.position.x;
-        tooltip.position.y = ship.position.y - ship.radius - 25;
-      }
-    }
   }
 
   /**

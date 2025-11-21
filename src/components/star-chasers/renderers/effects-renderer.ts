@@ -3,7 +3,6 @@ import { Vector2D } from '../../../models/vector2d';
 import {
   Particle,
   RadioBubble,
-  ScoreTooltip,
   TargetStar,
   WormholePair,
 } from '../../../models/game-entities';
@@ -91,44 +90,6 @@ export function drawRadioBubbles(
       ctx.fillText(line, bubble.position.x, textY);
     });
 
-    ctx.restore();
-  });
-}
-
-export function drawScoreTooltips(
-  ctx: CanvasRenderingContext2D,
-  tooltips: ScoreTooltip[]
-): void {
-  tooltips.forEach(tooltip => {
-    const fadeDuration = 30;
-    let opacity = 1;
-    if (tooltip.life < fadeDuration) opacity = tooltip.life / fadeDuration;
-    else if (tooltip.maxLife - tooltip.life < fadeDuration)
-      opacity = (tooltip.maxLife - tooltip.life) / fadeDuration;
-
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    const text = `★ ${tooltip.text}`;
-    ctx.font = 'bold 16px "Courier New", monospace';
-    const textMetrics = ctx.measureText(text);
-    const padding = 10;
-    const boxWidth = textMetrics.width + padding * 2;
-    const boxHeight = 30;
-    const boxX = tooltip.position.x - boxWidth / 2;
-    const boxY = tooltip.position.y - boxHeight;
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, tooltip.position.x, boxY + boxHeight / 2);
     ctx.restore();
   });
 }

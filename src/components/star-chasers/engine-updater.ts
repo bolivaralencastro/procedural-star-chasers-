@@ -36,7 +36,6 @@ export class EngineUpdater {
       spawnStarParticle: this.spawnStarParticle.bind(this),
       enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
       getRandomActiveShip: this.getRandomActiveShip.bind(this),
-      createScoreTooltip: this.createScoreTooltip.bind(this),
       applyManualControls: this.applyManualControls.bind(this),
       startManualReload: this.startManualReload.bind(this),
       handleShipUpdate: this.handleShipUpdate.bind(this),
@@ -66,7 +65,6 @@ export class EngineUpdater {
     this.maybeEndAsteroidEvent();
     this.updateParticles();
     this.updateExplosionParticles();
-    this.updateScoreTooltips();
     this.updateNebulas();
     this.updatePhilosophicalChatter();
     this.updateRadioBubbles();
@@ -113,20 +111,12 @@ export class EngineUpdater {
     GameStateManager.createNebula(this.engine.nebulas, position);
   }
 
-  createScoreTooltip(ship: Ship) {
-    StarEventManager.createScoreTooltip(ship, this.engine.scoreTooltips);
-  }
-
   updateParticles() {
     this.entityCoordinator.updateParticles();
   }
 
   updateExplosionParticles() {
     this.entityCoordinator.updateExplosionParticles();
-  }
-
-  updateScoreTooltips() {
-    this.entityCoordinator.updateScoreTooltips();
   }
 
   updateNebulas() {
@@ -254,7 +244,6 @@ export class EngineUpdater {
       this.engine.ships,
       {
         starParticles: this.engine.starParticles,
-        scoreTooltips: this.engine.scoreTooltips,
         nebulas: this.engine.nebulas,
         SPEED_INCREMENT_PER_STAR: this.engine.SPEED_INCREMENT_PER_STAR,
         MAX_SPEED_BONUS: this.engine.MAX_SPEED_BONUS,
@@ -262,7 +251,6 @@ export class EngineUpdater {
       {
         createStarExplosion: this.createStarExplosion.bind(this),
         createNebula: this.createNebula.bind(this),
-        createScoreTooltip: this.createScoreTooltip.bind(this),
         enqueueRadioMessage: this.enqueueRadioMessage.bind(this),
         scheduleNextStar: () => scheduleNextStar(this.engine),
         isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
@@ -276,7 +264,6 @@ export class EngineUpdater {
       ship,
       context,
       this.engine.radioBubbles,
-      this.engine.scoreTooltips,
       this.engine.globalChatterCooldownUntil,
       this.engine.starCaptureLockUntil,
       this.engine.shipChatterAvailableAt,

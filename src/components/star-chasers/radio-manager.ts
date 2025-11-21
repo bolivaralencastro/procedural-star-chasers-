@@ -1,5 +1,5 @@
 import { Vector2D } from '../../models/vector2d';
-import { RadioBubble, ScoreTooltip } from '../../models/game-entities';
+import { RadioBubble } from '../../models/game-entities';
 import { Ship } from '../../models/ship';
 import { RadioChatterService, RadioContext } from '../../services/radio-chatter.service';
 import { GAME_CONSTANTS } from './game-constants';
@@ -15,7 +15,6 @@ export class RadioManager {
     ship: Ship,
     context: RadioContext,
     radioBubbles: RadioBubble[],
-    scoreTooltips: ScoreTooltip[],
     globalChatterCooldownUntil: number,
     starCaptureLockUntil: number,
     shipChatterAvailableAt: Map<number, number>,
@@ -24,15 +23,6 @@ export class RadioManager {
   ): { success: boolean; newGlobalCooldown: number; newStarCaptureLock: number; newShipDelay: number } {
     const now = Date.now();
     const isStarCapture = context === 'star_capture';
-    
-    if (scoreTooltips.length > 0) {
-      return {
-        success: false,
-        newGlobalCooldown: globalChatterCooldownUntil,
-        newStarCaptureLock: starCaptureLockUntil,
-        newShipDelay: shipChatterAvailableAt.get(ship.id) ?? 0
-      };
-    }
     
     if (!isStarCapture && now < starCaptureLockUntil) {
       return {
@@ -62,7 +52,7 @@ export class RadioManager {
       };
     }
 
-    const line = radioService.takeLine(ship.color, context);
+    let line = radioService.takeLine(ship.color, context);
     if (!line) {
       return {
         success: false,
@@ -70,6 +60,10 @@ export class RadioManager {
         newStarCaptureLock: starCaptureLockUntil,
         newShipDelay: shipAvailableAt
       };
+    }
+
+    if (isStarCapture) {
+      line = `${line} (${ship.score})`;
     }
 
     const bubbleLife = Math.round(radioService.getMessageDuration() / 16.67);

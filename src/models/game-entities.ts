@@ -55,14 +55,6 @@ export interface Particle {
   color: string;
 }
 
-export interface ScoreTooltip {
-  shipId: number;
-  text: string;
-  position: Vector2D;
-  life: number;
-  maxLife: number;
-}
-
 export interface RadioBubble {
   shipId: number;
   textLines: string[];

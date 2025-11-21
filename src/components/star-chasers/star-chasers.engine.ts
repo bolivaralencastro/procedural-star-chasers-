@@ -12,7 +12,6 @@ import {
   BackgroundStar,
   TargetStar,
   Particle,
-  ScoreTooltip,
   RadioBubble,
   Nebula,
   WormholePair,
@@ -43,7 +42,6 @@ export class StarChasersEngine {
   public backgroundStars: BackgroundStar[] = [];
   public starParticles: Particle[] = [];
   public explosionParticles: Particle[] = [];
-  public scoreTooltips: ScoreTooltip[] = [];
   public nebulas: Nebula[] = [];
   public asteroids: Asteroid[] = [];
   public projectiles: Projectile[] = [];

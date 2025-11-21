@@ -17,7 +17,6 @@ interface EntityUpdateDependencies {
   spawnStarParticle: () => void;
   enqueueRadioMessage: (ship: Ship, context: RadioContext) => boolean;
   getRandomActiveShip: () => Ship;
-  createScoreTooltip: (ship: Ship) => void;
   applyManualControls: (ship: Ship, deltaTime: number) => void;
   startManualReload: () => void;
   handleShipUpdate: (ship: Ship, state: ShipState) => void;
@@ -88,10 +87,6 @@ export class EntityUpdateCoordinator {
 
   updateExplosionParticles(): void {
     ParticleEffectsManager.updateExplosionParticles(this.engine.explosionParticles);
-  }
-
-  updateScoreTooltips(): void {
-    StarEventManager.updateScoreTooltips(this.engine.scoreTooltips, this.engine.ships);
   }
 
   updateNebulas(): void {

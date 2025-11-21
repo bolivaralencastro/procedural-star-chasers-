@@ -6,7 +6,6 @@ import {
   Particle,
   Projectile,
   RadioBubble,
-  ScoreTooltip,
   TargetStar,
   WormholePair,
 } from '../../models/game-entities';
@@ -22,7 +21,6 @@ import {
   drawExplosionParticles,
   drawParticles,
   drawRadioBubbles,
-  drawScoreTooltips,
   drawWormhole,
 } from './renderers/effects-renderer';
 import { drawProjectiles } from './renderers/projectile-renderer';
@@ -40,7 +38,6 @@ interface RenderData {
   projectiles: Projectile[];
   particles: Particle[];
   explosionParticles: Particle[];
-  scoreTooltips: ScoreTooltip[];
   mouse: MouseState;
   wormhole: WormholePair | null;
   mobileMenuVisible: boolean;
@@ -78,7 +75,6 @@ export class RenderingManager {
       asteroids,
       projectiles,
       ships,
-      scoreTooltips,
       radioBubbles,
       mouse,
       mobileMenuVisible,
@@ -123,7 +119,6 @@ export class RenderingManager {
     //   dependencies.drawConstellation(ctx, ships);
     // }
 
-    RenderingManager.drawScoreTooltips(ctx, scoreTooltips);
     RenderingManager.drawRadioBubbles(ctx, radioBubbles, isMobile);
 
     if (!inputDisabled) {
@@ -188,10 +183,6 @@ export class RenderingManager {
 
   static drawRadioBubbles(ctx: CanvasRenderingContext2D, bubbles: RadioBubble[], isMobile: boolean): void {
     drawRadioBubbles(ctx, bubbles, isMobile);
-  }
-
-  static drawScoreTooltips(ctx: CanvasRenderingContext2D, tooltips: ScoreTooltip[]): void {
-    drawScoreTooltips(ctx, tooltips);
   }
 
   static drawWormhole(ctx: CanvasRenderingContext2D, wormhole: WormholePair): void {
