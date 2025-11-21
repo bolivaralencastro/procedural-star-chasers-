@@ -9,9 +9,10 @@ import { ContextMenuState, MouseState } from './input-manager';
 
 @Directive()
 export class StarChasersBase implements AfterViewInit, OnDestroy {
-  @ViewChild('gameCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('gameCanvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('contextMenuEl') contextMenuRef?: ElementRef<HTMLDivElement>;
   @Output() toggleFullscreenRequest = new EventEmitter<void>();
+  @Output() openAboutRequest = new EventEmitter<void>();
   @Input() isFullscreen = false;
 
   private cdr = inject(ChangeDetectorRef);
@@ -27,6 +28,7 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
     constellationService: this.constellationService,
     cdr: this.cdr,
     onToggleFullscreen: () => this.toggleFullscreenRequest.emit(),
+    onOpenAbout: () => this.openAboutRequest.emit(),
   });
 
   // Exposed bindings for the template
@@ -99,16 +101,20 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
     this.engine.onToggleWakeLock(event);
   }
 
+  public onOpenAbout(event: Event) {
+    this.engine.onOpenAbout(event);
+  }
+
   public toggleMobileMenu() {
     this.engine.toggleMobileMenu();
   }
 
-  public toggleConstellationMode() {
+  toggleConstellationMode() {
     this.engine.toggleConstellationMode();
   }
 
   ngAfterViewInit(): void {
-    this.engine.attachView(this.canvasRef, this.contextMenuRef);
+    this.engine.attachView(() => this.canvasRef, () => this.contextMenuRef);
     this.engine.initialize();
   }
 

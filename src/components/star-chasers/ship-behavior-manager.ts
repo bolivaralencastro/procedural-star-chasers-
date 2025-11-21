@@ -115,7 +115,7 @@ export class ShipBehaviorManager {
     ship.velocity.x = newVelX;
     ship.velocity.y = newVelY;
     let idleSpeed = 0.8 + ship.speedBonus * 0.5;
-    if (ship.color === 'Blue') idleSpeed *= 1.25;
+    if (ship.color === 'Blue') idleSpeed *= 1.25; // Blue ships are faster
     ship.velocity.normalize().multiply(idleSpeed);
   }
 

@@ -71,40 +71,65 @@ export class WormholeManager {
     const { entry, exit } = wormhole;
     const targets = [entry, exit];
     const destinations = [exit, entry];
+    const attractionRadius = 250; // Increased range
 
     for (let i = 0; i < targets.length; i++) {
       const target = targets[i];
       const destination = destinations[i];
       const dist = Vector2D.distance(entity.position, target.position);
       
-      const attractionRadius = 150;
       if (dist > target.radius && dist < attractionRadius) {
         const pull = target.position.clone().subtract(entity.position).normalize();
-        const strength = (1 - dist / attractionRadius) * 0.4;
+        // Inverse square law-ish for more realistic gravity feel
+        // Clamped to avoid infinite forces at center
+        const normalizedDist = Math.max(dist, target.radius + 10) / attractionRadius;
+        const strength = (1 / (normalizedDist * normalizedDist)) * 0.05; 
+        
         if ('acceleration' in entity) {
           (entity as Ship).acceleration.add(pull.multiply(strength));
+          
+          // Fade out effect when entering
+          if (target === entry) {
+            (entity as Ship).opacity = Math.max(0, (dist - target.radius) / (attractionRadius * 0.5));
+          }
         } else {
-          entity.velocity.add(pull.multiply(strength * 0.3));
+          entity.velocity.add(pull.multiply(strength * 0.5));
         }
+      } else if ('acceleration' in entity && target === entry && dist >= attractionRadius) {
+        // Reset opacity if outside range
+        (entity as Ship).opacity = Math.min(1, (entity as Ship).opacity + 0.05);
       }
 
       if (dist < target.radius) {
         // Teleport the entity
-        onTeleport(entity.position); // Call callback for particle effects at entry point
+        // Removed particle explosion on entry
 
         entity.position = destination.position.clone();
         const exitDirection = new Vector2D(Math.random() - 0.5, Math.random() - 0.5).normalize();
         const speed = entity.velocity.magnitude();
         entity.velocity = exitDirection.multiply(speed > 1 ? speed : 2);
         entity.justTeleported = GAME_CONSTANTS.WORMHOLE_TELEPORT_COOLDOWN_FRAMES;
+        
+        if ('opacity' in entity) {
+          (entity as Ship).opacity = 0.3; // Start partially visible at exit
+        }
 
-        onTeleport(entity.position); // Call callback for particle effects at exit point
+        // Removed particle explosion on exit
         
         if ('tail' in entity && Array.isArray(entity.tail)) {
           entity.tail = [];
         }
         break;
       }
+    }
+    
+    // Fade in effect after teleporting (when near exit or just moving normally)
+    if ('opacity' in entity && (entity as Ship).opacity < 1) {
+       // If we are not being sucked into the entry, we should be fading in
+       const distToEntry = Vector2D.distance(entity.position, entry.position);
+       if (distToEntry > attractionRadius) {
+          (entity as Ship).opacity = Math.min(1, (entity as Ship).opacity + 0.1);
+       }
     }
   }
 

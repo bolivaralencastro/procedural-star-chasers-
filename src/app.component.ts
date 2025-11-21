@@ -24,6 +24,7 @@ export class AppComponent implements OnDestroy {
   isWakeLockEnabled = signal(false);
   isMobile = signal(false);
   
+  @ViewChild(StarChasersComponent) starChasers?: StarChasersComponent;
   @ViewChild(AboutDialogComponent) aboutDialog?: AboutDialogComponent;
   
   private platformId = inject(PLATFORM_ID);
@@ -52,6 +53,11 @@ export class AppComponent implements OnDestroy {
         
         // Initialize wake lock state
         this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
+        
+        // Set mouse interaction reference for about dialog
+        if (this.aboutDialog && this.starChasers) {
+          this.aboutDialog.mouseInteractionEnabled = this.starChasers.mouseInteractionEnabled;
+        }
         
         this.checkMobile();
         window.addEventListener('resize', () => this.checkMobile());

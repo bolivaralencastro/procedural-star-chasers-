@@ -1,8 +1,9 @@
 import { Vector2D } from '../../models/vector2d';
 import { Ship } from '../../models/ship';
+import { Projectile, Asteroid } from '../../models/game-entities';
 
 /**
- * Helper class for managing ship-to-ship collisions
+ * Helper class for managing collisions between game entities
  */
 export class CollisionManager {
   /**
@@ -80,5 +81,35 @@ export class CollisionManager {
 
     shipA.velocity.add(impulse.clone().divide(massA));
     shipB.velocity.subtract(impulse.clone().divide(massB));
+  }
+
+  /**
+   * Updates projectile-to-asteroid collisions and removes destroyed asteroids
+   */
+  static updateProjectileAsteroidCollisions(
+    projectiles: Projectile[],
+    asteroids: Asteroid[],
+    onAsteroidDestroyed: (asteroid: Asteroid, projectilePosition: Vector2D) => void,
+    onProjectileHit: (projectileIndex: number) => void
+  ): void {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const projectile = projectiles[i];
+
+      for (let j = asteroids.length - 1; j >= 0; j--) {
+        const asteroid = asteroids[j];
+
+        // Check collision: distance between centers < sum of radii
+        const distance = Vector2D.distance(projectile.position, asteroid.position);
+        if (distance < asteroid.radius + 3) { // 3 is approximate projectile radius
+          // Collision detected
+          onAsteroidDestroyed(asteroid, projectile.position);
+          onProjectileHit(i);
+
+          // Remove asteroid
+          asteroids.splice(j, 1);
+          break; // Move to next projectile after destroying asteroid
+        }
+      }
+    }
   }
 }

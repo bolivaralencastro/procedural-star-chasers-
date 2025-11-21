@@ -18,6 +18,7 @@ export interface Projectile {
   position: Vector2D;
   velocity: Vector2D;
   life: number;
+  maxLife: number;
   color: string;
   ownerId: number;
   tail: Vector2D[];

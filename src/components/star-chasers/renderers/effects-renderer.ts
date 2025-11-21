@@ -156,37 +156,48 @@ function drawWormholeEnd(
   }
 
   const baseRadius = radius * scale;
-  const pulseEffect = Math.sin(pulseAngle) * 2;
-  const currentRadius = baseRadius + pulseEffect;
-
-  if (currentRadius <= 0) {
+  
+  if (baseRadius <= 0) {
     return;
   }
 
   ctx.save();
   ctx.translate(position.x, position.y);
 
-  // Inner void
-  ctx.globalAlpha = scale * 0.7;
-  ctx.fillStyle = 'black';
+  // Slow pulse calculation
+  const pulse = Math.sin(pulseAngle * 0.5); // Slow down the visual pulse
+  const pulseScale = 1 + pulse * 0.1; // +/- 10% size
+
+  // 1. Outer Glow (Dark Gray)
+  const glowRadius = baseRadius * 2.5 * pulseScale;
+  const glowGradient = ctx.createRadialGradient(0, 0, baseRadius * 0.5, 0, 0, glowRadius);
+  glowGradient.addColorStop(0, 'rgba(75, 85, 99, 0.4)'); // Gray-600
+  glowGradient.addColorStop(0.5, 'rgba(55, 65, 81, 0.2)'); // Gray-700
+  glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  
+  ctx.fillStyle = glowGradient;
   ctx.beginPath();
-  ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+  ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  // Pulsating outer ring
-  ctx.globalAlpha = scale;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.lineWidth = 2;
+  // 2. Core (Black)
+  ctx.fillStyle = '#000000'; // Pure Black
   ctx.beginPath();
-  ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
+  ctx.arc(0, 0, baseRadius * pulseScale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 3. Inner Ring / Event Horizon Edge (Almost Black)
+  ctx.strokeStyle = '#0a0a0a'; // Almost Black
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseRadius * pulseScale, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Subtle glow
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-  ctx.lineWidth = 4;
+  // 4. Subtle outer ring
+  ctx.strokeStyle = 'rgba(75, 85, 99, 0.2)'; // Gray-600
+  ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(0, 0, currentRadius + 1, 0, Math.PI * 2);
+  ctx.arc(0, 0, baseRadius * pulseScale * 1.2, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.restore();
@@ -264,8 +275,8 @@ export function drawCursor(
         cursorY,
         glowRadius
       );
-      glowGradient.addColorStop(0, 'rgba(147, 51, 234, 0.6)');
-      glowGradient.addColorStop(0.5, 'rgba(192, 132, 252, 0.3)');
+      glowGradient.addColorStop(0, 'rgba(75, 85, 99, 0.6)'); // Gray-600
+      glowGradient.addColorStop(0.5, 'rgba(55, 65, 81, 0.3)'); // Gray-700
       glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
       ctx.beginPath();
@@ -274,11 +285,11 @@ export function drawCursor(
       ctx.fill();
 
       ctx.beginPath();
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = '#18181b'; // Zinc-900
       ctx.arc(cursorX, cursorY, coreRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+      ctx.strokeStyle = 'rgba(113, 113, 122, 0.5)'; // Zinc-500
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(cursorX, cursorY, coreRadius + 1, 0, Math.PI * 2);

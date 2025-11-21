@@ -46,4 +46,5 @@ export interface Ship {
   rotation: number;
   rotationSpeed: number;
   justTeleported?: number;
+  opacity: number;
 }

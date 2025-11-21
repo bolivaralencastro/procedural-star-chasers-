@@ -66,7 +66,9 @@ export class AudioPlayback {
         return;
       }
       if (error.name === 'NotAllowedError') {
-        console.warn(`Autoplay prevented for '${name}'. Waiting for user interaction.`);
+        // Autoplay prevented. This is expected behavior until user interaction.
+        // Suppressing log to avoid console spam.
+        // console.warn(`Autoplay prevented for '${name}'. Waiting for user interaction.`);
         return;
       }
     }

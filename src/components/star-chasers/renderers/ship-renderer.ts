@@ -3,7 +3,7 @@ import { Ship } from '../../../models/ship';
 
 export function drawShipTail(ctx: CanvasRenderingContext2D, ship: Ship): void {
   ctx.save();
-  let finalAlpha = 1 - ship.z * -1 * 0.4;
+  let finalAlpha = (1 - ship.z * -1 * 0.4) * ship.opacity;
   if (ship.color === 'Blue' && ship.isBlinking > 0) {
     finalAlpha *= 1 - ship.isBlinking / 15;
   }
@@ -30,11 +30,11 @@ export function drawShip(
 ): void {
   const scale = 1 + ship.z * 0.4;
   const currentRadius = ship.radius * scale;
-  let finalAlpha = 1 - ship.z * -1 * 0.4;
+  let finalAlpha = (1 - ship.z * -1 * 0.4) * ship.opacity;
 
   // Shadow (unrotated)
   if (ship.z > 0.1) {
-    const shadowAlpha = ship.z * 0.3;
+    const shadowAlpha = ship.z * 0.3 * ship.opacity;
     const shadowRadiusX = currentRadius * 1.2;
     const shadowRadiusY = currentRadius * 0.6;
     const shadowOffsetX = ship.z * currentRadius * 0.8;

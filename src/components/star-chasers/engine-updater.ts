@@ -51,6 +51,7 @@ export class EngineUpdater {
       isShipCurrentlyControlled: this.isShipCurrentlyControlled.bind(this),
       fireProjectile: this.fireProjectile.bind(this),
       createAfterburnerParticle: this.createAfterburnerParticle.bind(this),
+      spawnAsteroid: this.spawnAsteroid.bind(this),
     });
   }
 
@@ -61,6 +62,7 @@ export class EngineUpdater {
     this.updateWormhole();
     this.updateProjectiles();
     this.updateAsteroids();
+    this.updateProjectileAsteroidCollisions();
     this.maybeEndAsteroidEvent();
     this.updateParticles();
     this.updateExplosionParticles();
@@ -70,6 +72,7 @@ export class EngineUpdater {
     this.updateRadioBubbles();
     this.engine.ships.forEach(ship => this.updateShip(ship));
     this.updateShipCollisions();
+    this.checkStarCapture(); // Add star capture detection
   }
 
   draw() {
@@ -77,7 +80,7 @@ export class EngineUpdater {
   }
 
   setupCanvas() {
-    const setup = CanvasManager.setupCanvas(this.engine.canvasRef.nativeElement);
+    const setup = CanvasManager.setupCanvas(this.engine.getCanvasRef().nativeElement);
     this.engine.isMobile.set(setup.isMobile);
     this.engine.renderScale = setup.renderScale;
     this.engine.worldWidth = setup.worldWidth;
@@ -136,6 +139,10 @@ export class EngineUpdater {
 
   updateAsteroids() {
     this.entityCoordinator.updateAsteroids();
+  }
+
+  updateProjectileAsteroidCollisions() {
+    this.entityCoordinator.updateProjectileAsteroidCollisions();
   }
 
   updatePhilosophicalChatter() {
@@ -385,7 +392,7 @@ export class EngineUpdater {
   }
 
   wrapText(text: string, maxWidth: number): string[] {
-    const ctx = this.engine.canvasRef.nativeElement.getContext('2d');
+    const ctx = this.engine.getCanvasRef().nativeElement.getContext('2d');
     if (!ctx) return [text];
     
     ctx.save();
@@ -412,5 +419,14 @@ export class EngineUpdater {
 
     ctx.restore();
     return lines;
+  }
+
+  checkStarCapture(): void {
+    StarEventManager.checkStarCapture(
+      this.engine.ships,
+      this.engine.targetStar,
+      this.engine.gameMode,
+      (winner) => this.captureStar(winner)
+    );
   }
 }

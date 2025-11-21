@@ -93,6 +93,14 @@ export class ShipUpdateManager {
       if (Math.random() < 0.8) callbacks.createAfterburnerParticle(ship);
     }
 
+    // Handle paralyzed state timer globally to prevent getting stuck
+    if (ship.state === 'paralyzed') {
+      ship.paralyzeTimer -= deltaTime;
+      if (ship.paralyzeTimer <= 0) {
+        ship.state = callbacks.isShipCurrentlyControlled(ship) ? 'controlled' : 'idle';
+      }
+    }
+
     let asteroidTarget: Asteroid | null = null;
     let predictedAsteroidPosition: Vector2D | null = null;
 
@@ -186,12 +194,7 @@ export class ShipUpdateManager {
     audioService: AudioService,
     deltaTime: number
   ): void {
-    if (ship.state === 'paralyzed') {
-      ship.paralyzeTimer -= deltaTime;
-      if (ship.paralyzeTimer <= 0) {
-        ship.state = callbacks.isShipCurrentlyControlled(ship) ? 'controlled' : 'idle';
-      }
-    } else if (ship.state !== 'orbiting' && ship.state !== 'launched') {
+    if (ship.state !== 'orbiting' && ship.state !== 'launched' && ship.state !== 'paralyzed') {
       let target: Vector2D | null = null;
       let isRescuing = false;
       
@@ -342,7 +345,7 @@ export class ShipUpdateManager {
         if (context.targetStar.exists && !context.targetStar.isDespawning) {
           const direction = context.targetStar.position.clone().subtract(ship.position).normalize();
           let huntStrength = 0.05;
-          if (ship.color === 'Red') huntStrength = 0.07;
+          if (ship.color === 'Red') huntStrength = 0.07; // Red ships hunt more aggressively
           ship.acceleration.add(direction.multiply(huntStrength));
         }
         break;

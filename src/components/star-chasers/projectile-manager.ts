@@ -24,6 +24,7 @@ export class ProjectileManager {
       position: startPos,
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE,
+      maxLife: GAME_CONSTANTS.PROJECTILE_LIFE,
       color: '#FFD700', // Gold
       ownerId: ship.id,
       tail: [],
@@ -106,6 +107,7 @@ export class ProjectileManager {
       position: startPos,
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE,
+      maxLife: GAME_CONSTANTS.PROJECTILE_LIFE,
       color: '#FFD700', // Gold
       ownerId: ship.id,
       tail: [],
@@ -137,6 +139,7 @@ export class ProjectileManager {
       position: startPos,
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE * 2,
+      maxLife: GAME_CONSTANTS.PROJECTILE_LIFE * 2,
       color: '#FF4500', // OrangeRed
       ownerId: ship.id,
       tail: [],

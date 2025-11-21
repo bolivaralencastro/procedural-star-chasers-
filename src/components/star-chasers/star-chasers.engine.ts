@@ -29,12 +29,14 @@ export interface StarChasersEngineDeps {
   constellationService: ConstellationService;
   cdr: ChangeDetectorRef;
   onToggleFullscreen: () => void;
+  onOpenAbout: () => void;
 }
 
 export class StarChasersEngine {
-  public canvasRef!: ElementRef<HTMLCanvasElement>;
-  public contextMenuRef?: ElementRef<HTMLDivElement>;
+  public getCanvasRef!: () => ElementRef<HTMLCanvasElement>;
+  public getContextMenuRef?: () => ElementRef<HTMLDivElement> | undefined;
   public ctx!: CanvasRenderingContext2D;
+  private currentCanvasElement?: HTMLCanvasElement;
   private animationFrameId?: number;
 
   public ships: Ship[] = [];
@@ -103,16 +105,24 @@ export class StarChasersEngine {
 
   constructor(public readonly deps: StarChasersEngineDeps) {}
 
-  attachView(canvasRef: ElementRef<HTMLCanvasElement>, contextMenuRef?: ElementRef<HTMLDivElement>) {
-    this.canvasRef = canvasRef;
-    this.contextMenuRef = contextMenuRef;
+  attachView(getCanvasRef: () => ElementRef<HTMLCanvasElement>, getContextMenuRef: () => ElementRef<HTMLDivElement> | undefined) {
+    this.getCanvasRef = getCanvasRef;
+    this.getContextMenuRef = getContextMenuRef;
   }
 
   initialize() {
-    this.ctx = this.canvasRef.nativeElement.getContext('2d')!;
-    this.updater.setupCanvas();
+    this.updateCanvasContext();
     this.updater.initGame();
     this.gameLoop();
+  }
+
+  private updateCanvasContext() {
+    const canvas = this.getCanvasRef().nativeElement;
+    if (canvas !== this.currentCanvasElement) {
+      this.currentCanvasElement = canvas;
+      this.ctx = canvas.getContext('2d')!;
+      this.updater.setupCanvas();
+    }
   }
 
   destroy() {
@@ -175,6 +185,10 @@ export class StarChasersEngine {
     this.interactions.onToggleWakeLock(event);
   }
 
+  onOpenAbout(event: Event) {
+    this.interactions.onOpenAbout(event);
+  }
+
   toggleMobileMenu() {
     this.interactions.toggleMobileMenu();
   }
@@ -196,6 +210,7 @@ export class StarChasersEngine {
   }
 
   private gameLoop = () => {
+    this.updateCanvasContext();
     this.updater.update();
     this.updater.draw();
     this.animationFrameId = requestAnimationFrame(this.gameLoop);

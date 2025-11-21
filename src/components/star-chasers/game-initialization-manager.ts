@@ -53,6 +53,7 @@ export class GameInitializationManager {
       reloadTimer: 0,
       rotation: Math.random() * Math.PI * 2,
       rotationSpeed: 0.08 + (Math.random() - 0.5) * 0.02,
+      opacity: 1,
     }));
   }
 }

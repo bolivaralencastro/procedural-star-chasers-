@@ -137,12 +137,27 @@ export class AsteroidManager {
     worldWidth: number,
     worldHeight: number
   ): { destroyedAsteroids: Asteroid[]; addedParticles: any[]; collectedTooltips: any[] } {
-    asteroids.forEach(asteroid => {
+    const destroyedAsteroids: Asteroid[] = [];
+
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+      const asteroid = asteroids[i];
       this.updateMovement(asteroid, ships, worldWidth, worldHeight);
-    });
+
+      // Check collision with ships
+      for (const ship of ships) {
+        if (this.checkShipCollision(asteroid, ship)) {
+          ship.state = 'paralyzed';
+          ship.paralyzeTimer = GAME_CONSTANTS.SHIP_PARALYZE_DURATION;
+          
+          destroyedAsteroids.push(asteroid);
+          asteroids.splice(i, 1);
+          break; // Asteroid is gone, stop checking other ships
+        }
+      }
+    }
     
     return {
-      destroyedAsteroids: [],
+      destroyedAsteroids,
       addedParticles: [],
       collectedTooltips: []
     };

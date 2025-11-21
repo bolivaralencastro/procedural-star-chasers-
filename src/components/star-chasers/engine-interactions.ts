@@ -22,7 +22,7 @@ export class EngineInteractions {
   handleMouseMove(event: MouseEvent) {
     this.firstInteractionHandled = EventHandlersManager.handleMouseMove(
       event,
-      this.engine.canvasRef.nativeElement,
+      this.engine.getCanvasRef().nativeElement,
       this.engine.renderScale,
       this.engine.mouse,
       this.firstInteractionHandled,
@@ -57,11 +57,11 @@ export class EngineInteractions {
       return;
     }
 
-    if (key === 'c') {
-      event.preventDefault();
-      this.toggleConstellationMode();
-      return;
-    }
+    // if (key === 'c') {
+    //   event.preventDefault();
+    //   this.toggleConstellationMode();
+    //   return;
+    // }
 
     if (this.engine.controlledShipId === null) {
       return;
@@ -90,7 +90,7 @@ export class EngineInteractions {
   handleTouchMove(event: TouchEvent) {
     this.longPressTimer = EventHandlersManager.handleTouchMove(
       event,
-      this.engine.canvasRef.nativeElement,
+      this.engine.getCanvasRef().nativeElement,
       this.engine.renderScale,
       this.engine.mouse,
       this.touchStartPosition,
@@ -102,7 +102,7 @@ export class EngineInteractions {
   handleMouseDown(event: MouseEvent) {
     const result = EventHandlersManager.handleMouseDown(event, {
       contextMenu: this.engine.contextMenu,
-      contextMenuElement: this.engine.contextMenuRef?.nativeElement,
+      contextMenuElement: this.engine.getContextMenuRef?.()?.nativeElement,
       mouseInteractionEnabled: this.engine.mouseInteractionEnabled(),
       wormhole: this.engine.wormhole,
       mouse: this.engine.mouse,
@@ -121,7 +121,7 @@ export class EngineInteractions {
 
   handleTouchStart(event: TouchEvent) {
     const result = EventHandlersManager.handleTouchStart(event, {
-      canvas: this.engine.canvasRef.nativeElement,
+      canvas: this.engine.getCanvasRef().nativeElement,
       renderScale: this.engine.renderScale,
       isMobile: this.engine.isMobile(),
       mobileMenuVisible: this.engine.mobileMenuVisible(),
@@ -199,6 +199,15 @@ export class EngineInteractions {
     this.engine.deps.cdr.detectChanges();
   }
 
+  onOpenAbout(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.engine.deps.onOpenAbout();
+    this.engine.contextMenu.visible = false;
+    this.engine.mobileMenuVisible.set(false);
+    this.engine.deps.cdr.detectChanges();
+  }
+
   toggleMobileMenu() {
     this.engine.mobileMenuVisible.update(v => !v);
     this.engine.contextMenu.visible = false;
@@ -273,14 +282,14 @@ export class EngineInteractions {
   }
 
   private updateCursorVisibility() {
-    if (!this.engine.canvasRef) {
+    if (!this.engine.getCanvasRef()) {
       return;
     }
-    InputManager.updateCursorVisibility(this.engine.canvasRef.nativeElement, this.engine.controlledShipId);
+    InputManager.updateCursorVisibility(this.engine.getCanvasRef().nativeElement, this.engine.controlledShipId);
   }
 
   private showContextMenu(clientX: number, clientY: number): ContextMenuState {
-    const rect = this.engine.canvasRef.nativeElement.getBoundingClientRect();
+    const rect = this.engine.getCanvasRef().nativeElement.getBoundingClientRect();
     this.engine.contextMenu = InputManager.showContextMenu(clientX, clientY, rect, this.engine.contextMenu);
     this.engine.deps.cdr.detectChanges();
     return this.engine.contextMenu;

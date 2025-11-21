@@ -117,9 +117,9 @@ export class RenderingManager {
       RenderingManager.drawShip(ctx, ship, gameMode);
     });
 
-    if (constellationMode && dependencies.drawConstellation) {
-      dependencies.drawConstellation(ctx, ships);
-    }
+    // if (constellationMode && dependencies.drawConstellation) {
+    //   dependencies.drawConstellation(ctx, ships);
+    // }
 
     RenderingManager.drawScoreTooltips(ctx, scoreTooltips);
     RenderingManager.drawRadioBubbles(ctx, radioBubbles, isMobile);

@@ -35,13 +35,12 @@ export class EventLoopCoordinator {
   }
 
   checkForAsteroidEvent(): void {
-    if (this.engine.gameMode !== 'normal') {
+    if (this.engine.gameMode !== 'normal' || this.engine.asteroids.length > 0) {
       return;
     }
 
-    const totalScore = this.engine.ships.reduce((sum, ship) => sum + ship.score, 0);
-    if (totalScore >= this.engine.eventTriggerScore && Math.random() < GAME_CONSTANTS.EVENT_TRIGGER_CHANCE) {
-      this.engine.eventTriggerScore += 2;
+    const allHaveEnoughStars = this.engine.ships.every(s => s.score >= this.engine.eventTriggerScore);
+    if (allHaveEnoughStars && Math.random() < GAME_CONSTANTS.EVENT_TRIGGER_CHANCE) {
       this.triggerAsteroidEvent();
     }
   }
@@ -49,11 +48,17 @@ export class EventLoopCoordinator {
   triggerAsteroidEvent(): void {
     this.engine.gameMode = 'asteroid_event';
     this.engine.targetStar.exists = false;
-    this.messaging.enqueueRadioMessage(this.messaging.getRandomActiveShip(), 'asteroid_warning');
-    this.engine.deps.audioService.playSound('alert');
-    this.spawnAsteroid('large');
-    this.spawnAsteroid('medium');
-    this.spawnAsteroid('small');
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      this.spawnAsteroid('large');
+    }
+    this.engine.ships.forEach(s => {
+      if (this.messaging.getRandomActiveShip() === s) {
+        return;
+      }
+      s.state = 'idle';
+    });
+    this.messaging.enqueueRadioMessage(this.messaging.getRandomActiveShip(), 'meteor_event');
   }
 
   spawnAsteroid(size: Asteroid['size'], position?: Vector2D, velocity?: Vector2D): void {
@@ -61,12 +66,9 @@ export class EventLoopCoordinator {
   }
 
   maybeEndAsteroidEvent(): void {
-    const allDestroyedOrExpired = this.engine.asteroids.every(asteroid => AsteroidManager.isAsteroidGone(asteroid));
-    if (allDestroyedOrExpired) {
-      this.engine.eventTriggerScore += 2;
+    if (this.engine.gameMode === 'asteroid_event' && this.engine.asteroids.length === 0) {
       this.engine.gameMode = 'normal';
       scheduleNextStar(this.engine);
-      this.messaging.enqueueRadioMessage(this.messaging.getRandomActiveShip(), 'asteroid_clear');
     }
   }
 }

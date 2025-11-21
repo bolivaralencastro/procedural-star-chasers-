@@ -32,6 +32,7 @@ interface EntityUpdateDependencies {
   isShipCurrentlyControlled: (ship: Ship) => boolean;
   fireProjectile: (ship: Ship) => void;
   createAfterburnerParticle: (ship: Ship) => void;
+  spawnAsteroid: (size: 'large' | 'medium' | 'small', position?: Vector2D, velocity?: Vector2D) => void;
 }
 
 export class EntityUpdateCoordinator {
@@ -74,6 +75,11 @@ export class EntityUpdateCoordinator {
       this.engine.worldWidth,
       this.engine.worldHeight
     );
+
+    destroyedAsteroids.forEach(asteroid => {
+      this.dependencies.createStarExplosion(asteroid.position, 20);
+      this.engine.deps.audioService.playSound('paralyzed');
+    });
   }
 
   updateParticles(): void {
@@ -157,5 +163,61 @@ export class EntityUpdateCoordinator {
 
   updateShipCollisions(): void {
     CollisionManager.updateShipCollisions(this.engine.ships, this.dependencies.maybeTriggerProximityChatter);
+  }
+
+  updateProjectileAsteroidCollisions(): void {
+    const projectilesToRemove = new Set<number>();
+    
+    CollisionManager.updateProjectileAsteroidCollisions(
+      this.engine.projectiles,
+      this.engine.asteroids,
+      (asteroid, projectilePosition) => {
+        // Call explosion effect callback
+        this.dependencies.createStarExplosion(asteroid.position, 15);
+        this.engine.deps.audioService.playPooledSound('explosion');
+
+        // Update statistics for the ship that fired the projectile
+        for (let i = 0; i < this.engine.projectiles.length; i++) {
+          const p = this.engine.projectiles[i];
+          if (Vector2D.distance(p.position, projectilePosition) < 5) {
+            const ownerShip = this.engine.ships.find(s => s.id === p.ownerId);
+            if (ownerShip) {
+              ownerShip.asteroidsDestroyed++;
+            }
+            break;
+          }
+        }
+
+        // Fragment the asteroid into smaller pieces
+        if (asteroid.size === 'large') {
+          for (let k = 0; k < 2; k++) {
+            this.dependencies.spawnAsteroid(
+              'medium',
+              asteroid.position.clone(),
+              new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiply(1.5)
+            );
+          }
+        } else if (asteroid.size === 'medium') {
+          for (let k = 0; k < 2; k++) {
+            this.dependencies.spawnAsteroid(
+              'small',
+              asteroid.position.clone(),
+              new Vector2D(Math.random() * 2 - 1, Math.random() * 2 - 1).normalize().multiply(2)
+            );
+          }
+        }
+      },
+      (projectileIndex) => {
+        // Mark projectile for removal
+        projectilesToRemove.add(projectileIndex);
+      }
+    );
+
+    // Remove marked projectiles
+    for (let i = this.engine.projectiles.length - 1; i >= 0; i--) {
+      if (projectilesToRemove.has(i)) {
+        this.engine.projectiles.splice(i, 1);
+      }
+    }
   }
 }
