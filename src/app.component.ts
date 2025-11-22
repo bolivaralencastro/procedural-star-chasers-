@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, effect, ViewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, ViewChild } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { ParticleClockComponent } from './components/particle-clock/particle-clock.component';
 import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
@@ -21,7 +21,6 @@ export interface Score {
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);
-  isWakeLockEnabled = signal(false);
   isMobile = signal(false);
   
   @ViewChild(StarChasersComponent) starChasers?: StarChasersComponent;
@@ -38,22 +37,13 @@ export class AppComponent implements OnDestroy {
   formattedDate = computed(() => this.formatDate(this.currentTime()));
 
   constructor() {
-    // Create an effect to react to wake lock state changes
-    // Effects must be created in injection context (constructor)
-    effect(() => {
-      this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
-    });
-
     afterNextRender(() => {
       if (isPlatformBrowser(this.platformId)) {
         document.addEventListener('fullscreenchange', this.onFullscreenChange);
         this.clockIntervalId = window.setInterval(() => {
           this.currentTime.set(new Date());
         }, 1000);
-        
-        // Initialize wake lock state
-        this.isWakeLockEnabled.set(this.screenWakeLockService.getIsEnabled()());
-        
+
         // Set mouse interaction reference for about dialog
         if (this.aboutDialog && this.starChasers) {
           this.aboutDialog.inputDisabled = this.starChasers.inputDisabled;
@@ -63,8 +53,10 @@ export class AppComponent implements OnDestroy {
         window.addEventListener('resize', () => this.checkMobile());
       }
     });
-  }  private checkMobile() {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+  }
+
+  private checkMobile() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                    (window.innerWidth < 800 && 'ontouchstart' in window);
     this.isMobile.set(isMobile);
   }
@@ -108,8 +100,8 @@ export class AppComponent implements OnDestroy {
     }
   }
 
-  toggleWakeLock(): void {
-    this.screenWakeLockService.toggleWakeLock();
+  toggleMobileMenu(): void {
+    this.starChasers?.toggleMobileMenu();
   }
 
   openAbout(): void {

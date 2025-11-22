@@ -11,23 +11,18 @@
     [date]="formattedDate()">
   </app-particle-clock>
 
-  <!-- Controls (Wake Lock + About) -->
+  <!-- Mobile Controls -->
   @if (isMobile()) {
-    <div class="absolute top-4 right-4 flex items-center gap-2 pointer-events-auto">
-      <!-- Wake Lock Button -->
+    <div class="absolute bottom-4 right-4 pointer-events-auto z-50">
       <button
         type="button"
-        (click)="toggleWakeLock()"
-        class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800/60 backdrop-blur-sm border border-gray-600 hover:bg-gray-700/80 transition-colors"
-        [class.text-yellow-400]="isWakeLockEnabled()"
-        [class.text-gray-400]="!isWakeLockEnabled()"
-        title="Toggle screen wake lock">
+        (click)="toggleMobileMenu()"
+        class="mobile-menu flex items-center justify-center w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-gray-200 shadow-lg hover:bg-white/10 transition-colors"
+        title="Abrir menu">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 6V4a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v2"></path>
-          <path d="M12 18v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2"></path>
-          <path d="M6 12H4a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2"></path>
-          <path d="M18 12h2a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2"></path>
-          <circle cx="12" cy="12" r="3"></circle>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
     </div>
