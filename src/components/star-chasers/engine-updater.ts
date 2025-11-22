@@ -81,6 +81,7 @@ export class EngineUpdater {
   setupCanvas() {
     const setup = CanvasManager.setupCanvas(this.engine.getCanvasRef().nativeElement);
     this.engine.isMobile.set(setup.isMobile);
+    this.engine.mouseInteractionEnabled.set(!setup.isMobile);
     this.engine.renderScale = setup.renderScale;
     this.engine.worldWidth = setup.worldWidth;
     this.engine.worldHeight = setup.worldHeight;
