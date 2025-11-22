@@ -121,7 +121,7 @@ export class RenderingManager {
 
     RenderingManager.drawRadioBubbles(ctx, radioBubbles, isMobile);
 
-    if (!inputDisabled) {
+    if (!inputDisabled && !isMobile) {
       const allowMouseInteraction = mouseInteractionEnabled && !mobileMenuVisible && !contextMenuVisible;
       RenderingManager.drawCursor(
         ctx,
