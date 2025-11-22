@@ -20,6 +20,9 @@ export class EngineInteractions {
   }
 
   handleMouseMove(event: MouseEvent) {
+    if (this.engine.isMobile()) {
+      return;
+    }
     this.firstInteractionHandled = EventHandlersManager.handleMouseMove(
       event,
       this.engine.getCanvasRef().nativeElement,
@@ -100,6 +103,9 @@ export class EngineInteractions {
   }
 
   handleMouseDown(event: MouseEvent) {
+    if (this.engine.isMobile()) {
+      return;
+    }
     if (this.engine.inputDisabled()) {
       return;
     }
@@ -171,11 +177,20 @@ export class EngineInteractions {
   }
 
   onContextMenu(event: MouseEvent) {
+    if (this.engine.isMobile()) {
+      return;
+    }
     event.preventDefault();
     this.showContextMenu(event.clientX, event.clientY);
   }
 
   toggleMouseInteraction(event: Event) {
+    if (this.engine.isMobile()) {
+      this.engine.contextMenu.visible = false;
+      this.engine.mobileMenuVisible.set(false);
+      this.engine.deps.cdr.detectChanges();
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     this.engine.mouseInteractionEnabled.update(v => !v);

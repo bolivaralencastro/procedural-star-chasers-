@@ -60,12 +60,12 @@
     
     <!-- Mobile Floating Menu -->
     @if (isMobile()) {
-        <div class="absolute top-4 right-4 z-40 mobile-menu">
-            <button 
-                type="button"
-                (click)="toggleMobileMenu()"
-                class="flex items-center justify-center w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-gray-200 shadow-lg hover:bg-white/10 transition-colors"
-                title="Menu">
+    <div class="absolute bottom-4 right-4 z-40 mobile-menu">
+        <button
+            type="button"
+            (click)="toggleMobileMenu()"
+            class="flex items-center justify-center w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-gray-200 shadow-lg hover:bg-white/10 transition-colors"
+            title="Menu">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="3" y1="6" x2="21" y2="6"></line>
                     <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -74,27 +74,26 @@
             </button>
             
             @if (mobileMenuVisible()) {
-                <div class="absolute top-14 right-0 bg-black/70 backdrop-blur-md border border-white/10 rounded-md shadow-2xl text-gray-200 font-mono text-sm z-50 overflow-hidden w-52 mobile-menu">
+                <div class="absolute bottom-16 right-0 bg-black/70 backdrop-blur-md border border-white/10 rounded-md shadow-2xl text-gray-200 font-mono text-sm z-50 overflow-hidden w-52 mobile-menu">
+                    <div class="px-4 py-2 text-xs text-gray-400 border-b border-white/10">
+                        Controles por cursor estão desativados no mobile.
+                    </div>
+
                     <div class="py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors"
                          (click)="onOpenAbout($event)">
                         Sobre
                     </div>
 
                     <div class="py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors border-t border-white/10"
-                         (click)="toggleMouseInteraction($event)">
-                        {{ mouseInteractionEnabled() ? 'Disable Touch' : 'Enable Touch' }}
-                    </div>
-
-                    <div class="py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors border-t border-white/10"
                          (click)="onToggleAudio($event)">
                         {{ audioService.isMuted() ? 'Unmute Audio' : 'Mute Audio' }}
                     </div>
-                    
+
                     <div class="py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors border-t border-white/10"
                          (click)="onToggleFullscreen($event)">
                         {{ isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen' }}
                     </div>
-                    
+
                     <div class="py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors border-t border-white/10"
                          (click)="onToggleWakeLock($event)">
                         {{ wakeLockService.getIsEnabled()() ? 'Disable Wake Lock' : 'Enable Wake Lock' }}
