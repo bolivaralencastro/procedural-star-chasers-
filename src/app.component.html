@@ -1,35 +1,85 @@
-<div class="relative w-screen h-screen bg-black">
-  <app-star-chasers 
-    (toggleFullscreenRequest)="toggleFullscreen()"
-    (openAboutRequest)="openAbout()"
-    [isFullscreen]="isFullscreen()">
-  </app-star-chasers>
-
-  <!-- Central Clock and Date -->
-  <app-particle-clock 
-    [time]="formattedTime()" 
-    [date]="formattedDate()">
-  </app-particle-clock>
-
-  <!-- Mobile Controls -->
-  @if (isMobile()) {
-    <div class="absolute right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] pointer-events-auto z-50">
-      <button
-        type="button"
-        (click)="toggleMobileMenu()"
-        class="mobile-menu flex items-center justify-center w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-gray-200 shadow-lg hover:bg-white/10 transition-colors"
-        title="Abrir menu">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      </button>
+<div class="min-h-screen bg-[#ededed] text-[#333333] font-sans">
+  <header class="fixed top-0 inset-x-0 h-16 bg-[#ffe600] border-b border-black/5 z-50 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+    <div class="mx-auto flex h-full max-w-6xl items-center justify-between px-4">
+      <div class="flex items-center gap-4">
+        <img
+          alt="Logo Mercado Livre"
+          class="h-9 w-auto"
+          src="https://http2.mlstatic.com/frontend-assets/ml-web-navigation/ui-navigation/6.6.152/mercadolibre/pt_logo_large_plus@2x.webp" />
+        <div class="flex flex-col leading-tight">
+          <span class="text-sm font-semibold">Product Design Research</span>
+          <span class="text-xs text-black/70">Mercado Livre · Experience Lab</span>
+        </div>
+      </div>
+      <nav class="hidden items-center gap-5 md:flex">
+        @for (link of navLinks; track link.id) {
+          <a
+            class="text-sm font-semibold text-[#333333] transition hover:text-[#3483fa]"
+            [attr.href]="'#' + link.id">{{ link.label }}</a>
+        }
+      </nav>
     </div>
-  } @else {
-    <!-- Desktop controls removed as requested -->
-  }
+  </header>
 
-  <!-- About Dialog -->
-  <app-about-dialog #aboutDialog></app-about-dialog>
+  <main class="pt-20">
+    <section
+      id="home"
+      class="relative isolate min-h-[66vh] bg-[linear-gradient(180deg,#ffea78_0%,#ffea78_85%,#ededed_100%)] px-5 pb-16 pt-24">
+      <div class="mx-auto flex max-w-6xl flex-col gap-8">
+        <div class="max-w-3xl space-y-4">
+          <p class="text-sm font-semibold uppercase tracking-[0.18em] text-[#3483fa]">Research Playbook</p>
+          <h1 class="text-4xl font-semibold leading-[1.1] text-[#333333] md:text-5xl">
+            Mapeamento completo das etapas do app
+          </h1>
+          <p class="max-w-2xl text-lg font-light text-[#4a4a4a]">
+            Estrutura de páginas para guiar a descoberta, estratégia e entrega do produto, mantendo consistência com o design system Andes.
+          </p>
+          <div class="flex flex-wrap gap-3 text-sm text-[#4a4a4a]">
+            <span class="rounded-full bg-white/70 px-4 py-2 font-medium shadow-sm">Navegação fixa</span>
+            <span class="rounded-full bg-white/70 px-4 py-2 font-medium shadow-sm">Hero responsiva</span>
+            <span class="rounded-full bg-white/70 px-4 py-2 font-medium shadow-sm">Cards por etapa</span>
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="rounded-2xl bg-white/80 p-4 shadow-sm backdrop-blur">
+            <p class="text-xs font-semibold uppercase text-[#3483fa]">Alinhamento</p>
+            <p class="mt-2 text-base text-[#333333]">Escopo e marcos claros para todas as páginas do app.</p>
+          </div>
+          <div class="rounded-2xl bg-white/80 p-4 shadow-sm backdrop-blur">
+            <p class="text-xs font-semibold uppercase text-[#3483fa]">Consistência</p>
+            <p class="mt-2 text-base text-[#333333]">Tokens de cor inspirados no Andes e identidades ML.</p>
+          </div>
+          <div class="rounded-2xl bg-white/80 p-4 shadow-sm backdrop-blur">
+            <p class="text-xs font-semibold uppercase text-[#3483fa]">Prontidão</p>
+            <p class="mt-2 text-base text-[#333333]">Checklist de entrega com handoff organizado.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto grid max-w-6xl gap-6 px-5 pb-16">
+      @for (section of sections; track section.id) {
+        <article
+          [attr.id]="section.id"
+          class="scroll-mt-24 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-md">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#3483fa]">{{ section.badge ?? 'Etapa' }}</p>
+              <h2 class="text-2xl font-semibold text-[#333333]">{{ section.title }}</h2>
+              <p class="max-w-3xl text-sm text-[#4a4a4a]">{{ section.summary }}</p>
+            </div>
+            <span class="self-start rounded-full bg-[#ffea78] px-4 py-2 text-xs font-semibold text-[#333333] shadow-sm">{{ section.label ?? section.title }}</span>
+          </div>
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">
+            @for (highlight of section.highlights; track highlight) {
+              <div class="flex gap-3 rounded-xl bg-[#f9f9f9] p-3 ring-1 ring-black/5">
+                <span class="mt-1.5 h-2.5 w-2.5 rounded-full bg-[#3483fa]"></span>
+                <p class="text-sm text-[#333333]">{{ highlight }}</p>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </section>
+  </main>
 </div>
