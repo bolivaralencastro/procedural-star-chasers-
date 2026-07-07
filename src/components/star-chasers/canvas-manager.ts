@@ -6,6 +6,8 @@ export interface CanvasSetup {
   renderScale: number;
   worldWidth: number;
   worldHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
   isMobile: boolean;
 }
 
@@ -22,13 +24,17 @@ export class CanvasManager {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const worldWidth = window.innerWidth / renderScale;
-    const worldHeight = window.innerHeight / renderScale;
+    const viewportWidth = window.innerWidth / renderScale;
+    const viewportHeight = window.innerHeight / renderScale;
+    const worldWidth = viewportWidth * GAME_CONSTANTS.WORLD_SIZE_MULTIPLIER;
+    const worldHeight = viewportHeight * GAME_CONSTANTS.WORLD_SIZE_MULTIPLIER;
 
     return {
       renderScale,
       worldWidth,
       worldHeight,
+      viewportWidth,
+      viewportHeight,
       isMobile,
     };
   }

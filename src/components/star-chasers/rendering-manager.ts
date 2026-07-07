@@ -9,6 +9,7 @@ import {
   TargetStar,
   WormholePair,
 } from '../../models/game-entities';
+import { Vector2D } from '../../models/vector2d';
 import { MouseState } from './input-manager';
 import {
   drawAsteroids,
@@ -46,6 +47,9 @@ interface RenderData {
   renderScale: number;
   worldWidth: number;
   worldHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  cameraPosition: Vector2D;
   nebulas: Nebula[];
   asteroids: Asteroid[];
   radioBubbles: RadioBubble[];
@@ -66,6 +70,9 @@ export class RenderingManager {
       renderScale,
       worldWidth,
       worldHeight,
+      viewportWidth,
+      viewportHeight,
+      cameraPosition,
       backgroundStars,
       nebulas,
       targetStar,
@@ -88,8 +95,15 @@ export class RenderingManager {
     } = data;
 
     ctx.save();
-    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-    ctx.clearRect(0, 0, worldWidth, worldHeight);
+    ctx.setTransform(
+      renderScale,
+      0,
+      0,
+      renderScale,
+      -cameraPosition.x * renderScale,
+      -cameraPosition.y * renderScale
+    );
+    ctx.clearRect(cameraPosition.x, cameraPosition.y, viewportWidth, viewportHeight);
 
     RenderingManager.drawBackgroundStars(ctx, backgroundStars);
     RenderingManager.drawNebulas(ctx, nebulas);

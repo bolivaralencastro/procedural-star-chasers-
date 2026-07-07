@@ -229,7 +229,11 @@ export class ShipUpdateManager {
           const predictedPosition = this.calculateInterceptionPoint(ship, asteroidTarget);
           
           // Calculate strategic strafing position
-          const safeDistance = 200;
+          const safeDistance = asteroidTarget.size === 'small'
+            ? 110
+            : asteroidTarget.size === 'medium'
+              ? 150
+              : 200;
           const predictionTime = 30;
           const futureAsteroidPos = asteroidTarget.position.clone()
             .add(asteroidTarget.velocity.clone().multiply(predictionTime));
@@ -248,14 +252,21 @@ export class ShipUpdateManager {
               predictedPosition.x - ship.position.x
             );
             const angleDifference = Math.abs(utils.normalizeAngle(ship.rotation - angleToTarget));
-            const firingArc = Math.PI / 12; // 15 degrees
+            const firingArc = asteroidTarget.size === 'small'
+              ? Math.PI / 9
+              : asteroidTarget.size === 'medium'
+                ? Math.PI / 12
+                : Math.PI / 18;
+            const withinFiringBand =
+              distanceToTarget > (asteroidTarget.size === 'small' ? 40 : GAME_CONSTANTS.ASTEROID_EVENT_MIN_FIRING_DISTANCE) &&
+              distanceToTarget < (asteroidTarget.size === 'small' ? 460 : GAME_CONSTANTS.ASTEROID_EVENT_FIRING_RANGE);
 
-            if (distanceToTarget < 400 && angleDifference < firingArc) {
+            if (withinFiringBand && angleDifference < firingArc) {
               if (ship.ammo > 0 && ship.reloadTimer <= 0) {
                 callbacks.fireProjectile(ship);
               } else if (ship.ammo <= 0) {
                 audioService.playSound('empty');
-                ship.fireCooldown = 500;
+                ship.fireCooldown = GAME_CONSTANTS.PROJECTILE_FIRE_COOLDOWN;
               }
             }
           }
@@ -284,7 +295,7 @@ export class ShipUpdateManager {
 
   private static calculateInterceptionPoint(ship: Ship, asteroidTarget: Asteroid): Vector2D | null {
     // Analytical solution for interception point
-    const projectileBaseSpeed = 8;
+    const projectileBaseSpeed = GAME_CONSTANTS.PROJECTILE_SPEED;
     const S_rel = asteroidTarget.position.clone().subtract(ship.position);
     const V_rel = asteroidTarget.velocity.clone().subtract(ship.velocity.clone().multiply(0.5));
     
@@ -292,6 +303,14 @@ export class ShipUpdateManager {
     const b = 2 * (V_rel.x * S_rel.x + V_rel.y * S_rel.y);
     const c = S_rel.x * S_rel.x + S_rel.y * S_rel.y;
     
+    if (Math.abs(a) < 0.0001) {
+      const linearTime = -c / b;
+      if (Number.isFinite(linearTime) && linearTime > 0) {
+        return asteroidTarget.position.clone().add(asteroidTarget.velocity.clone().multiply(linearTime));
+      }
+      return asteroidTarget.position.clone();
+    }
+
     const discriminant = b * b - 4 * a * c;
     
     let timeToIntercept = -1;

@@ -27,6 +27,7 @@ export class EngineInteractions {
       event,
       this.engine.getCanvasRef().nativeElement,
       this.engine.renderScale,
+      this.engine.cameraPosition,
       this.engine.mouse,
       this.firstInteractionHandled,
       this.handleFirstInteraction.bind(this)
@@ -57,6 +58,13 @@ export class EngineInteractions {
     if (key === 'p') {
       event.preventDefault();
       this.toggleShipControl();
+      return;
+    }
+
+    if (key === 'tab') {
+      event.preventDefault();
+      this.engine.cycleFocusedShip();
+      this.engine.updater.updateCamera(true);
       return;
     }
 
@@ -95,6 +103,7 @@ export class EngineInteractions {
       event,
       this.engine.getCanvasRef().nativeElement,
       this.engine.renderScale,
+      this.engine.cameraPosition,
       this.engine.mouse,
       this.touchStartPosition,
       this.longPressTimer,
@@ -137,6 +146,7 @@ export class EngineInteractions {
     const result = EventHandlersManager.handleTouchStart(event, {
       canvas: this.engine.getCanvasRef().nativeElement,
       renderScale: this.engine.renderScale,
+      cameraPosition: this.engine.cameraPosition,
       isMobile: this.engine.isMobile(),
       mobileMenuVisible: this.engine.mobileMenuVisible(),
       contextMenu: this.engine.contextMenu,

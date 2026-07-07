@@ -13,6 +13,10 @@ export const GAME_CONSTANTS = {
   
   // Mouse orbit
   MOUSE_ORBIT_RADIUS: 60,
+
+  // World / camera
+  WORLD_SIZE_MULTIPLIER: 4,
+  CAMERA_FOLLOW_LERP: 0.12,
   
   // Ship chatter delays (in milliseconds)
   SHIP_CHATTER_DELAY_RANGE: [9000, 16000] as [number, number],
@@ -38,7 +42,7 @@ export const GAME_CONSTANTS = {
   ASTEROID_RADIUS_MULTIPLIER: { // Effective collision radius scaling
     large: 1.0,
     medium: 1.0,
-    small: 1.4, // Increase small asteroid collision radius by 40% for better hit detection
+    small: 1.85, // Small asteroids need a more forgiving hit volume
   } as const,
   
   // Asteroid tracking
@@ -56,9 +60,16 @@ export const GAME_CONSTANTS = {
   ASTEROID_SHAPE_DIST_RANGE: 0.4,
   
   // Projectiles
-  PROJECTILE_SPEED: 8,
+  PROJECTILE_SPEED: 8.5,
   PROJECTILE_SHIP_VELOCITY_FACTOR: 0.5,
-  PROJECTILE_LIFE: 100,
+  PROJECTILE_LIFE: 64,
+  PROJECTILE_TRAIL_LENGTH: 5,
+  PROJECTILE_RENDER_RADIUS: 2.6,
+  PROJECTILE_OFFSCREEN_MARGIN: 32,
+  PROJECTILE_FIRE_COOLDOWN: 600,
+  PROJECTILE_SUPERNOVA_COOLDOWN: 1000,
+  ASTEROID_EVENT_FIRING_RANGE: 420,
+  ASTEROID_EVENT_MIN_FIRING_DISTANCE: 70,
   
   // Red personality (Hothead)
   RED_LAUNCH_SPEED_MULTIPLIER: 1.2,

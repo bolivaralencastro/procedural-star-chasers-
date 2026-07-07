@@ -22,27 +22,29 @@ export class ProjectileManager {
     
     projectiles.push({
       position: startPos,
+      previousPosition: startPos.clone(),
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE,
       maxLife: GAME_CONSTANTS.PROJECTILE_LIFE,
-      color: '#FFD700', // Gold
+      color: '#ffd54a',
       ownerId: ship.id,
       tail: [],
     });
 
     ship.ammo--;
-    ship.fireCooldown = 500; // 0.5 second cooldown
+    ship.fireCooldown = GAME_CONSTANTS.PROJECTILE_FIRE_COOLDOWN;
   }
 
   /**
    * Updates projectile positions and tails
    */
   static updateMovement(projectile: Projectile): void {
+    projectile.previousPosition = projectile.position.clone();
     projectile.position.add(projectile.velocity);
     projectile.life--;
     
     projectile.tail.push(projectile.position.clone());
-    if (projectile.tail.length > 10) {
+    if (projectile.tail.length > GAME_CONSTANTS.PROJECTILE_TRAIL_LENGTH) {
       projectile.tail.shift();
     }
   }
@@ -52,6 +54,21 @@ export class ProjectileManager {
    */
   static isExpired(projectile: Projectile): boolean {
     return projectile.life <= 0;
+  }
+
+  static isOutOfBounds(
+    projectile: Projectile,
+    worldWidth: number,
+    worldHeight: number
+  ): boolean {
+    const margin = GAME_CONSTANTS.PROJECTILE_OFFSCREEN_MARGIN;
+
+    return (
+      projectile.position.x < -margin ||
+      projectile.position.x > worldWidth + margin ||
+      projectile.position.y < -margin ||
+      projectile.position.y > worldHeight + margin
+    );
   }
 
   /**
@@ -155,14 +172,15 @@ export class ProjectileManager {
       .add(ship.velocity.clone().multiply(GAME_CONSTANTS.PROJECTILE_SHIP_VELOCITY_FACTOR));
     
     ship.ammo--;
-    ship.fireCooldown = 500; // 0.5 second cooldown
+    ship.fireCooldown = GAME_CONSTANTS.PROJECTILE_FIRE_COOLDOWN;
     
     return {
       position: startPos,
+      previousPosition: startPos.clone(),
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE,
       maxLife: GAME_CONSTANTS.PROJECTILE_LIFE,
-      color: '#FFD700', // Gold
+      color: '#ffd54a',
       ownerId: ship.id,
       tail: [],
     };
@@ -187,14 +205,15 @@ export class ProjectileManager {
       .add(ship.velocity.clone().multiply(GAME_CONSTANTS.PROJECTILE_SHIP_VELOCITY_FACTOR));
     
     ship.ammo--;
-    ship.fireCooldown = 1000; // 1 second cooldown
+    ship.fireCooldown = GAME_CONSTANTS.PROJECTILE_SUPERNOVA_COOLDOWN;
     
     return {
       position: startPos,
+      previousPosition: startPos.clone(),
       velocity: velocity,
       life: GAME_CONSTANTS.PROJECTILE_LIFE * 2,
       maxLife: GAME_CONSTANTS.PROJECTILE_LIFE * 2,
-      color: '#FF4500', // OrangeRed
+      color: '#ff8a65',
       ownerId: ship.id,
       tail: [],
     };
@@ -211,14 +230,11 @@ export class ProjectileManager {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
       this.updateMovement(projectile);
-      
-      // Screen wrap
-      if (projectile.position.x < 0) projectile.position.x = worldWidth;
-      if (projectile.position.x > worldWidth) projectile.position.x = 0;
-      if (projectile.position.y < 0) projectile.position.y = worldHeight;
-      if (projectile.position.y > worldHeight) projectile.position.y = 0;
-      
-      if (this.isExpired(projectile)) {
+
+      if (
+        this.isExpired(projectile) ||
+        this.isOutOfBounds(projectile, worldWidth, worldHeight)
+      ) {
         projectiles.splice(i, 1);
       }
     }

@@ -1,6 +1,7 @@
 import { Vector2D } from '../../models/vector2d';
 import { Ship } from '../../models/ship';
 import { Projectile, Asteroid } from '../../models/game-entities';
+import { GAME_CONSTANTS } from './game-constants';
 
 /**
  * Helper class for managing collisions between game entities
@@ -93,12 +94,9 @@ export class CollisionManager {
     onAsteroidDestroyed: (asteroid: Asteroid, projectilePosition: Vector2D) => void,
     onProjectileHit: (projectileIndex: number) => void
   ): void {
-    // Store previous positions for CCD
-    const previousPositions = new Map<Projectile, Vector2D>();
-
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
-      const previousPos = previousPositions.get(projectile);
+      const previousPos = projectile.previousPosition;
 
       for (let j = asteroids.length - 1; j >= 0; j--) {
         const asteroid = asteroids[j];
@@ -114,9 +112,6 @@ export class CollisionManager {
           break; // Move to next projectile after destroying asteroid
         }
       }
-
-      // Store current position for next frame's CCD
-      previousPositions.set(projectile, projectile.position.clone());
     }
   }
 
@@ -129,14 +124,9 @@ export class CollisionManager {
     asteroid: Asteroid,
     previousProjectilePosition?: Vector2D
   ): boolean {
-    const PROJECTILE_RADIUS = 5;
-    const COLLISION_EPSILON = 0.5;
-    const radiusMultipliers: Record<string, number> = {
-      large: 1.0,
-      medium: 1.0,
-      small: 1.4, // 40% increase for small asteroids
-    };
-    const radiusMultiplier = radiusMultipliers[asteroid.size] || 1.0;
+    const PROJECTILE_RADIUS = GAME_CONSTANTS.PROJECTILE_RADIUS;
+    const COLLISION_EPSILON = GAME_CONSTANTS.COLLISION_EPSILON;
+    const radiusMultiplier = GAME_CONSTANTS.ASTEROID_RADIUS_MULTIPLIER[asteroid.size] || 1.0;
     const effectiveAsteroidRadius = asteroid.radius * radiusMultiplier;
     const collisionDistance = effectiveAsteroidRadius + PROJECTILE_RADIUS + COLLISION_EPSILON;
 

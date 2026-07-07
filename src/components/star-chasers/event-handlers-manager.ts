@@ -15,13 +15,14 @@ export class EventHandlersManager {
     event: MouseEvent,
     canvas: HTMLCanvasElement,
     renderScale: number,
+    cameraPosition: Vector2D,
     mouse: MouseState,
     firstInteractionHandled: boolean,
     onFirstInteraction: () => void,
   ): boolean {
     const rect = canvas.getBoundingClientRect();
-    mouse.pos.x = (event.clientX - rect.left) / renderScale;
-    mouse.pos.y = (event.clientY - rect.top) / renderScale;
+    mouse.pos.x = cameraPosition.x + (event.clientX - rect.left) / renderScale;
+    mouse.pos.y = cameraPosition.y + (event.clientY - rect.top) / renderScale;
 
     if (!firstInteractionHandled) {
       onFirstInteraction();
@@ -38,6 +39,7 @@ export class EventHandlersManager {
     event: TouchEvent,
     canvas: HTMLCanvasElement,
     renderScale: number,
+    cameraPosition: Vector2D,
     mouse: MouseState,
     touchStartPosition: Vector2D | null,
     longPressTimer: ReturnType<typeof setTimeout> | null,
@@ -47,8 +49,8 @@ export class EventHandlersManager {
     const touch = event.touches[0];
     const touchX = touch.clientX - rect.left;
     const touchY = touch.clientY - rect.top;
-    mouse.pos.x = touchX / renderScale;
-    mouse.pos.y = touchY / renderScale;
+    mouse.pos.x = cameraPosition.x + touchX / renderScale;
+    mouse.pos.y = cameraPosition.y + touchY / renderScale;
 
     if (
       longPressTimer &&
@@ -115,6 +117,7 @@ export class EventHandlersManager {
     params: {
       canvas: HTMLCanvasElement;
       renderScale: number;
+      cameraPosition: Vector2D;
       isMobile: boolean;
       mobileMenuVisible: boolean;
       contextMenu: ContextMenuState;
@@ -151,8 +154,8 @@ export class EventHandlersManager {
     const touch = event.touches[0];
     const touchX = touch.clientX - rect.left;
     const touchY = touch.clientY - rect.top;
-    params.mouse.pos.x = touchX / params.renderScale;
-    params.mouse.pos.y = touchY / params.renderScale;
+    params.mouse.pos.x = params.cameraPosition.x + touchX / params.renderScale;
+    params.mouse.pos.y = params.cameraPosition.y + touchY / params.renderScale;
 
     if (params.mobileMenuVisible) {
       const menuElement = document.elementFromPoint(touch.clientX, touch.clientY);

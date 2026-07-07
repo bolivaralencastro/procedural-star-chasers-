@@ -72,6 +72,7 @@ export class EngineUpdater {
     this.engine.ships.forEach(ship => this.updateShip(ship));
     this.updateShipCollisions();
     this.checkStarCapture(); // Add star capture detection
+    this.updateCamera();
   }
 
   draw() {
@@ -85,11 +86,16 @@ export class EngineUpdater {
     this.engine.renderScale = setup.renderScale;
     this.engine.worldWidth = setup.worldWidth;
     this.engine.worldHeight = setup.worldHeight;
+    this.engine.viewportWidth = setup.viewportWidth;
+    this.engine.viewportHeight = setup.viewportHeight;
+    this.updateCamera(true);
   }
 
   initGame() {
     this.createBackgroundStars(200);
     this.createShips();
+    this.engine.focusedShipId = this.engine.ships[0]?.id ?? 0;
+    this.updateCamera(true);
     scheduleNextStar(this.engine);
   }
 
@@ -99,6 +105,29 @@ export class EngineUpdater {
 
   createShips() {
     this.engine.ships = GameInitializationManager.createShips(this.engine.worldWidth, this.engine.worldHeight);
+  }
+
+  updateCamera(forceSnap = false) {
+    const focusedShip = this.engine.getFocusedShip();
+    if (!focusedShip) {
+      return;
+    }
+
+    const targetX = focusedShip.position.x - this.engine.viewportWidth / 2;
+    const targetY = focusedShip.position.y - this.engine.viewportHeight / 2;
+    const maxX = Math.max(0, this.engine.worldWidth - this.engine.viewportWidth);
+    const maxY = Math.max(0, this.engine.worldHeight - this.engine.viewportHeight);
+    const clampedTargetX = Math.max(0, Math.min(maxX, targetX));
+    const clampedTargetY = Math.max(0, Math.min(maxY, targetY));
+
+    if (forceSnap) {
+      this.engine.cameraPosition.x = clampedTargetX;
+      this.engine.cameraPosition.y = clampedTargetY;
+      return;
+    }
+
+    this.engine.cameraPosition.x += (clampedTargetX - this.engine.cameraPosition.x) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
+    this.engine.cameraPosition.y += (clampedTargetY - this.engine.cameraPosition.y) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
   }
 
   createStarExplosion(position: Vector2D, count = GAME_CONSTANTS.STAR_EXPLOSION_PARTICLE_COUNT) {

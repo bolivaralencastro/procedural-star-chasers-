@@ -98,6 +98,10 @@ export class StarChasersEngine {
   public renderScale = 1.0;
   public worldWidth = 0;
   public worldHeight = 0;
+  public viewportWidth = 0;
+  public viewportHeight = 0;
+  public cameraPosition = new Vector2D();
+  public focusedShipId = 0;
 
   public readonly updater = new EngineUpdater(this);
   private readonly interactions = new EngineInteractions(this);
@@ -206,6 +210,20 @@ export class StarChasersEngine {
 
   getRandomActiveShip(): Ship {
     return this.updater.getRandomActiveShip();
+  }
+
+  getFocusedShip(): Ship | undefined {
+    return this.ships.find(ship => ship.id === this.focusedShipId);
+  }
+
+  cycleFocusedShip(): void {
+    if (this.ships.length === 0) {
+      return;
+    }
+
+    const currentIndex = this.ships.findIndex(ship => ship.id === this.focusedShipId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % this.ships.length : 0;
+    this.focusedShipId = this.ships[nextIndex].id;
   }
 
   private gameLoop = () => {

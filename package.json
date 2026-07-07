@@ -1,7 +1,8 @@
 {
   "name": "procedural-star-chasers",
-  "private": true,
+  "private": false,
   "version": "0.0.0",
+  "description": "Angular canvas toy where three AI ships chase stars, react to cosmic events, and switch between autopilot and manual control.",
   "type": "module",
   "scripts": {
     "dev": "ng serve",

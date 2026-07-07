@@ -16,6 +16,7 @@ export interface Asteroid {
 
 export interface Projectile {
   position: Vector2D;
+  previousPosition?: Vector2D;
   velocity: Vector2D;
   life: number;
   maxLife: number;
