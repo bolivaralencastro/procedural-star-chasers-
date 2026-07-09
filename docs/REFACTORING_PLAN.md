@@ -130,12 +130,20 @@ componente (o clock de 1s do app agenda CD). Some na Fase 2 com o EventBus.
 **Pendência consciente:** paridade mobile (menu flutuante/touch) verificada só por
 código, não em dispositivo — testar num celular real na próxima oportunidade.
 
-### Fase 3 — Rede de segurança e qualidade contínua
-- [ ] Vitest cobrindo os sistemas puros: colisão, IA/behavior, spawn, scoring
-      (agora trivial, pois `game/` não depende de DOM/framework).
-- [ ] ESLint + Prettier + `tsc --noEmit` em CI (GitHub Actions).
-- [ ] Regra de arquitetura no lint: proibir import de `ui/` dentro de `game/`.
-- [ ] Budget de bundle no CI (falha se passar de X KB).
+### Fase 3 — Rede de segurança e qualidade contínua ✅ CONCLUÍDA (2026-07-09)
+- [x] Vitest: 24 testes nos sistemas puros — signal reativo, Vector2D, cooldowns/
+      rotação do rádio, atribuição de constelação, física de colisão de naves.
+      `vitest.config.ts` separado roda em node puro (sem jsdom).
+- [x] ESLint flat config + `tsc --noEmit`; scripts `test`, `lint`, `typecheck`.
+      Erros reais de legado corrigidos (flag morta `isRescuing`, declarações em
+      `case`, escapes inúteis). *Prettier adiado de propósito: reformataria o
+      código legado inteiro e poluiria o blame — adotar junto com a Fase 4.*
+- [x] Regra de arquitetura ativa e testada: import de `ui/` ou `solid-js` dentro
+      de `src/game/` é **erro** de lint.
+- [x] Budget de bundle (`scripts/check-bundle-budget.js`): JS ≤ 60 KB gzip,
+      CSS ≤ 10 KB gzip (uso atual: 38.5 / 4.7 KB).
+- [x] GitHub Actions (`.github/workflows/ci.yml`): typecheck + lint + test +
+      build + budget em push/PR.
 
 ### Fase 4 — Fundação para crescer (interatividade e recursos)
 - [ ] **Loop com timestep fixo** (update a 60 Hz fixo, render interpolado) —
