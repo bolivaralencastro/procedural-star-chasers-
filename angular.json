@@ -23,6 +23,11 @@
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "/assets"
+              },
+              {
+                "glob": "manifest.json",
+                "input": ".",
+                "output": "/"
               }
             ]
           },
