@@ -67,15 +67,26 @@ recursos sem virar espaguete.
 
 ## Fases
 
-### Fase 0 — Higiene (sem risco, ~1 sessão)
+### Fase 0 — Higiene (sem risco, ~1 sessão) ✅ CONCLUÍDA (2026-07-08)
 Vale a pena mesmo que a migração nunca aconteça.
 
-- [ ] Commitar/guardar o trabalho pendente atual (há 7 arquivos modificados).
-- [ ] Adicionar `.angular/` ao `.gitignore` e remover do índice (`git rm -r --cached .angular`).
-- [ ] Deletar `star-chasers-backup.component.ts` (o git guarda a história).
-- [ ] Mover guias `.md` da raiz para `docs/`.
-- [ ] Remover `rxjs` do `package.json`; pinar `tailwindcss`.
-- [ ] Investigar remoção do `import '@angular/compiler'` (AOT) — ganho imediato de bundle.
+- [x] Commitar/guardar o trabalho pendente atual (commit `6efcde5`).
+- [x] Remover `.angular/cache` do índice git (já estava no `.gitignore`).
+- [x] Deletar `star-chasers-backup.component.ts` (2.424 linhas, sem referências).
+- [x] Deletar `app/constellation-formation/` (scaffold vazio de `ng generate`, sem referências).
+- [x] Mover guias `.md` da raiz para `docs/`.
+- [x] Remover `rxjs` **e** `tailwindcss` do `package.json` — descoberto que o Tailwind
+      real vem do **Play CDN** em `index.html` (`cdn.tailwindcss.com`); o pacote npm
+      nunca esteve ligado ao build. Migrar CDN → build de verdade fica para a Fase 2.
+- [x] Remover `import '@angular/compiler'` — **bundle caiu de 717.66 kB para 252.80 kB
+      raw (-65%); transfer 171.64 → 68.58 kB (-60%)**. Verificado em runtime no browser.
+- [x] Bônus: `manifest.json` agora é copiado para `dist/` (o `index.html` o referencia,
+      mas o build nunca o incluía — 404 em produção).
+
+**Problemas conhecidos anotados (não bloqueiam):**
+- `celebrate.wav` (154 B) e `engine_hum.wav` (150 B) são placeholders corrompidos —
+  o console avisa "not supported or corrupted" e o som é desativado. Substituir por
+  arquivos reais quando houver os assets.
 
 ### Fase 1 — Desacoplar o game core (o passo que paga a migração)
 Ainda dentro do Angular; o app continua funcionando igual.
