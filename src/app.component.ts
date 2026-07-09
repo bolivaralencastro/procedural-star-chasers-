@@ -1,6 +1,5 @@
 import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterNextRender, OnDestroy, computed, ViewChild } from '@angular/core';
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
-import { ParticleClockComponent } from './components/particle-clock/particle-clock.component';
 import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { AudioService } from './services/audio.service';
@@ -17,7 +16,7 @@ export interface Score {
   templateUrl: './app.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [StarChasersComponent, ParticleClockComponent, AboutDialogComponent, CommonModule],
+  imports: [StarChasersComponent, AboutDialogComponent, CommonModule],
 })
 export class AppComponent implements OnDestroy {
   isFullscreen = signal(false);

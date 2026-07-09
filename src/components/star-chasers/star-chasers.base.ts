@@ -35,6 +35,16 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
   get ships(): Ship[] { return this.engine.ships; }
   get contextMenu(): ContextMenuState { return this.engine.contextMenu; }
   get mouse(): MouseState { return this.engine.getMouse(); }
+  get targetStar() { return this.engine.targetStar; }
+  get asteroids() { return this.engine.asteroids; }
+  get cameraPosition() { return this.engine.cameraPosition; }
+  get worldWidth() { return this.engine.worldWidth; }
+  get worldHeight() { return this.engine.worldHeight; }
+  get viewportWidth() { return this.engine.viewportWidth; }
+  get viewportHeight() { return this.engine.viewportHeight; }
+  get focusedShipId() { return this.engine.focusedShipId; }
+  get followShipId() { return this.engine.followShipId; }
+  get followedShipCodename() { return this.engine.getFollowedShip()?.codename ?? 'Ship'; }
 
   public mobileMenuVisible = this.engine.mobileMenuVisible;
   public mouseInteractionEnabled = this.engine.mouseInteractionEnabled;
@@ -108,6 +118,44 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
 
   public toggleMobileMenu() {
     this.engine.toggleMobileMenu();
+  }
+
+  public releaseCameraFollow() {
+    this.engine.followShip(null);
+  }
+
+  public focusShip(shipId: number) {
+    this.engine.followShip(shipId);
+    this.engine.updater.updateCamera(true);
+  }
+
+  public onMinimapPointer(event: MouseEvent) {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target || this.worldWidth === 0 || this.worldHeight === 0) {
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const ratioX = (event.clientX - rect.left) / rect.width;
+    const ratioY = (event.clientY - rect.top) / rect.height;
+    const worldX = ratioX * this.worldWidth;
+    const worldY = ratioY * this.worldHeight;
+
+    const clickedShip = this.ships.find(ship => {
+      const shipX = (ship.position.x / this.worldWidth) * rect.width;
+      const shipY = (ship.position.y / this.worldHeight) * rect.height;
+      const dx = event.clientX - (rect.left + shipX);
+      const dy = event.clientY - (rect.top + shipY);
+      return Math.sqrt(dx * dx + dy * dy) < 10;
+    });
+
+    if (clickedShip) {
+      this.focusShip(clickedShip.id);
+      return;
+    }
+
+    this.engine.followShip(null);
+    this.engine.moveCameraTo(worldX, worldY);
   }
 
   toggleConstellationMode() {

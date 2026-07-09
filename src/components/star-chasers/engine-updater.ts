@@ -73,6 +73,7 @@ export class EngineUpdater {
     this.updateShipCollisions();
     this.checkStarCapture(); // Add star capture detection
     this.updateCamera();
+    this.engine.deps.cdr.detectChanges();
   }
 
   draw() {
@@ -95,7 +96,8 @@ export class EngineUpdater {
     this.createBackgroundStars(200);
     this.createShips();
     this.engine.focusedShipId = this.engine.ships[0]?.id ?? 0;
-    this.updateCamera(true);
+    this.engine.followShipId = null;
+    this.engine.moveCameraTo(this.engine.worldWidth / 2, this.engine.worldHeight / 2);
     scheduleNextStar(this.engine);
   }
 
@@ -108,13 +110,14 @@ export class EngineUpdater {
   }
 
   updateCamera(forceSnap = false) {
-    const focusedShip = this.engine.getFocusedShip();
-    if (!focusedShip) {
+    const followedShip = this.engine.getFollowedShip();
+    if (!followedShip) {
+      this.updateFreeCamera();
       return;
     }
 
-    const targetX = focusedShip.position.x - this.engine.viewportWidth / 2;
-    const targetY = focusedShip.position.y - this.engine.viewportHeight / 2;
+    const targetX = followedShip.position.x - this.engine.viewportWidth / 2;
+    const targetY = followedShip.position.y - this.engine.viewportHeight / 2;
     const maxX = Math.max(0, this.engine.worldWidth - this.engine.viewportWidth);
     const maxY = Math.max(0, this.engine.worldHeight - this.engine.viewportHeight);
     const clampedTargetX = Math.max(0, Math.min(maxX, targetX));
@@ -128,6 +131,27 @@ export class EngineUpdater {
 
     this.engine.cameraPosition.x += (clampedTargetX - this.engine.cameraPosition.x) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
     this.engine.cameraPosition.y += (clampedTargetY - this.engine.cameraPosition.y) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
+  }
+
+  private updateFreeCamera() {
+    const step = 22;
+    if (this.engine.cameraControlKeys.has('up')) {
+      this.engine.cameraPosition.y -= step;
+    }
+    if (this.engine.cameraControlKeys.has('down')) {
+      this.engine.cameraPosition.y += step;
+    }
+    if (this.engine.cameraControlKeys.has('left')) {
+      this.engine.cameraPosition.x -= step;
+    }
+    if (this.engine.cameraControlKeys.has('right')) {
+      this.engine.cameraPosition.x += step;
+    }
+
+    const maxX = Math.max(0, this.engine.worldWidth - this.engine.viewportWidth);
+    const maxY = Math.max(0, this.engine.worldHeight - this.engine.viewportHeight);
+    this.engine.cameraPosition.x = Math.max(0, Math.min(maxX, this.engine.cameraPosition.x));
+    this.engine.cameraPosition.y = Math.max(0, Math.min(maxY, this.engine.cameraPosition.y));
   }
 
   createStarExplosion(position: Vector2D, count = GAME_CONSTANTS.STAR_EXPLOSION_PARTICLE_COUNT) {

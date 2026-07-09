@@ -101,7 +101,9 @@ export class StarChasersEngine {
   public viewportWidth = 0;
   public viewportHeight = 0;
   public cameraPosition = new Vector2D();
+  public followShipId: number | null = null;
   public focusedShipId = 0;
+  public cameraControlKeys = new Set<'up' | 'down' | 'left' | 'right'>();
 
   public readonly updater = new EngineUpdater(this);
   private readonly interactions = new EngineInteractions(this);
@@ -216,6 +218,13 @@ export class StarChasersEngine {
     return this.ships.find(ship => ship.id === this.focusedShipId);
   }
 
+  getFollowedShip(): Ship | undefined {
+    if (this.followShipId === null) {
+      return undefined;
+    }
+    return this.ships.find(ship => ship.id === this.followShipId);
+  }
+
   cycleFocusedShip(): void {
     if (this.ships.length === 0) {
       return;
@@ -224,6 +233,21 @@ export class StarChasersEngine {
     const currentIndex = this.ships.findIndex(ship => ship.id === this.focusedShipId);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % this.ships.length : 0;
     this.focusedShipId = this.ships[nextIndex].id;
+    this.followShipId = this.focusedShipId;
+  }
+
+  followShip(shipId: number | null): void {
+    this.followShipId = shipId;
+    if (shipId !== null) {
+      this.focusedShipId = shipId;
+    }
+  }
+
+  moveCameraTo(centerX: number, centerY: number): void {
+    const maxX = Math.max(0, this.worldWidth - this.viewportWidth);
+    const maxY = Math.max(0, this.worldHeight - this.viewportHeight);
+    this.cameraPosition.x = Math.max(0, Math.min(maxX, centerX - this.viewportWidth / 2));
+    this.cameraPosition.y = Math.max(0, Math.min(maxY, centerY - this.viewportHeight / 2));
   }
 
   private gameLoop = () => {

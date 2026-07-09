@@ -57,6 +57,79 @@
             </div>
         </div>
     }
+
+    @if (!isMobile()) {
+        <div class="absolute right-4 top-4 z-40 w-56 pointer-events-auto">
+            <div class="rounded-2xl border border-white/10 bg-black/65 p-3 text-[11px] text-gray-200 shadow-2xl backdrop-blur-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="uppercase tracking-[0.2em] text-gray-500">Navigator</div>
+                        <div class="mt-1 text-xs text-gray-300">
+                            @if (followShipId !== null) {
+                                Following {{ followedShipCodename }}
+                            } @else {
+                                Free camera
+                            }
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-gray-300 hover:bg-white/10"
+                        (click)="releaseCameraFollow()">
+                        Free
+                    </button>
+                </div>
+
+                <div
+                    class="relative mt-3 aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/80"
+                    (click)="onMinimapPointer($event)">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.12),transparent_55%)]"></div>
+
+                    @for (ship of ships; track ship.id) {
+                        <div
+                            class="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/70"
+                            [style.left.%]="(ship.position.x / worldWidth) * 100"
+                            [style.top.%]="(ship.position.y / worldHeight) * 100"
+                            [style.background-color]="ship.hexColor"
+                            [class.ring-2]="ship.id === focusedShipId"
+                            [class.ring-white]="ship.id === focusedShipId"
+                            [class.scale-125]="ship.id === followShipId">
+                        </div>
+                    }
+
+                    @if (targetStar.exists) {
+                        <div
+                            class="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-300 shadow-[0_0_12px_rgba(253,224,71,0.8)]"
+                            [style.left.%]="(targetStar.position.x / worldWidth) * 100"
+                            [style.top.%]="(targetStar.position.y / worldHeight) * 100">
+                        </div>
+                    }
+
+                    @for (asteroid of asteroids; track $index) {
+                        <div
+                            class="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-400/80"
+                            [style.left.%]="(asteroid.position.x / worldWidth) * 100"
+                            [style.top.%]="(asteroid.position.y / worldHeight) * 100">
+                        </div>
+                    }
+
+                    <div
+                        class="absolute border border-cyan-300/80 bg-cyan-300/10"
+                        [style.left.%]="(cameraPosition.x / worldWidth) * 100"
+                        [style.top.%]="(cameraPosition.y / worldHeight) * 100"
+                        [style.width.%]="(viewportWidth / worldWidth) * 100"
+                        [style.height.%]="(viewportHeight / worldHeight) * 100">
+                    </div>
+                </div>
+
+                <div class="mt-2 flex items-center justify-between text-[10px] text-gray-500">
+                    <span>Click map to jump</span>
+                    <span>Tab / 1 2 3 / 0</span>
+                </div>
+                <div class="mt-1 text-[10px] text-gray-500">Arrow keys pan when no ship is selected.</div>
+            </div>
+        </div>
+    }
     
     <!-- Mobile Floating Menu -->
     @if (isMobile()) {

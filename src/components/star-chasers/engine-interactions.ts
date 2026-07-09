@@ -68,6 +68,23 @@ export class EngineInteractions {
       return;
     }
 
+    if (key === '0' || key === 'escape') {
+      event.preventDefault();
+      this.engine.followShip(null);
+      return;
+    }
+
+    if (key === '1' || key === '2' || key === '3') {
+      event.preventDefault();
+      const shipIndex = Number(key) - 1;
+      const ship = this.engine.ships[shipIndex];
+      if (ship) {
+        this.engine.followShip(ship.id);
+        this.engine.updater.updateCamera(true);
+      }
+      return;
+    }
+
     // if (key === 'c') {
     //   event.preventDefault();
     //   this.toggleConstellationMode();
@@ -75,6 +92,12 @@ export class EngineInteractions {
     // }
 
     if (this.engine.controlledShipId === null) {
+      const cameraKey = this.normalizeCameraKey(key);
+      if (cameraKey) {
+        this.engine.followShip(null);
+        this.engine.cameraControlKeys.add(cameraKey);
+        event.preventDefault();
+      }
       return;
     }
 
@@ -92,6 +115,11 @@ export class EngineInteractions {
   }
 
   handleKeyUp(event: KeyboardEvent) {
+    const cameraKey = this.normalizeCameraKey(event.key.toLowerCase());
+    if (cameraKey) {
+      this.engine.cameraControlKeys.delete(cameraKey);
+    }
+
     const key = this.normalizeControlKey(event.key);
     if (key) {
       this.engine.activeControlKeys.delete(key);
@@ -291,6 +319,21 @@ export class EngineInteractions {
 
   private normalizeControlKey(key: string) {
     return InputManager.normalizeControlKey(key);
+  }
+
+  private normalizeCameraKey(key: string): 'up' | 'down' | 'left' | 'right' | null {
+    switch (key) {
+      case 'arrowup':
+        return 'up';
+      case 'arrowdown':
+        return 'down';
+      case 'arrowleft':
+        return 'left';
+      case 'arrowright':
+        return 'right';
+      default:
+        return null;
+    }
   }
 
   private handleFirstInteraction() {
