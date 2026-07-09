@@ -1,4 +1,4 @@
-import { WritableSignal } from '@angular/core';
+import { WritableSignal } from '../../game/core/reactive';
 import { Vector2D } from '../../models/vector2d';
 import { Ship } from '../../models/ship';
 import { ControlKey } from '../../models/game-entities';

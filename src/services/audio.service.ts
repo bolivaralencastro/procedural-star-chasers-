@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { signal } from '../game/core/reactive';
 import { AudioEffects } from './audio/audio-effects';
 import {
   AudioLoader,
@@ -10,9 +10,6 @@ import { AudioPlayback } from './audio/audio-playback';
 
 export type { LoopSoundName, PooledSoundName, SoundName } from './audio/audio-loader';
 
-@Injectable({
-  providedIn: 'root',
-})
 export class AudioService {
   isMuted = signal(false);
 
@@ -20,11 +17,14 @@ export class AudioService {
   private firstInteractionHandled = false;
   private interactionListenersRegistered = false;
 
-  constructor(
-    private readonly audioLoader: AudioLoader,
-    private readonly playback: AudioPlayback,
-    private readonly audioEffects: AudioEffects,
-  ) {
+  private readonly audioLoader: AudioLoader;
+  private readonly playback: AudioPlayback;
+  private readonly audioEffects: AudioEffects;
+
+  constructor() {
+    this.audioLoader = new AudioLoader();
+    this.playback = new AudioPlayback(this.audioLoader);
+    this.audioEffects = new AudioEffects(this.audioLoader, this.playback);
     this.registerInteractionUnlock();
   }
 
@@ -90,6 +90,13 @@ export class AudioService {
 
   cleanup(): void {
     this.audioLoader.cleanup();
+  }
+
+  /** App-wide singleton — replaces Angular's providedIn: 'root'. */
+  private static instance: AudioService | null = null;
+
+  static get shared(): AudioService {
+    return (AudioService.instance ??= new AudioService());
   }
 
   private registerInteractionUnlock(): void {

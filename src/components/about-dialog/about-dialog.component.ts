@@ -1,6 +1,6 @@
 import { Component, signal, ChangeDetectionStrategy, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { WritableSignal } from '@angular/core';
+import { WritableSignal } from '../../game/core/reactive';
 
 @Component({
   selector: 'app-about-dialog',

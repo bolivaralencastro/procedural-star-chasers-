@@ -1,4 +1,3 @@
-import { Injectable } from '@angular/core';
 
 export type SoundName =
   | 'launch'
@@ -65,9 +64,6 @@ export const SOUND_ASSETS: SoundAsset[] = [
   { name: 'orbit', path: 'orbit_hum.mp3', type: 'loop', initialVolume: 0 },
 ];
 
-@Injectable({
-  providedIn: 'root',
-})
 export class AudioLoader {
   private sounds = new Map<SoundAssetName, HTMLAudioElement>();
   private soundPools = new Map<PooledSoundName, { pool: HTMLAudioElement[]; index: number }>();

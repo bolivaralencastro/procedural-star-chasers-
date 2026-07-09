@@ -1,4 +1,3 @@
-import { Injectable } from '@angular/core';
 import { AudioLoader, LoopSoundName } from './audio-loader';
 import { AudioPlayback } from './audio-playback';
 
@@ -19,9 +18,6 @@ interface BackgroundMusicParams {
   audioUnlocked: boolean;
 }
 
-@Injectable({
-  providedIn: 'root',
-})
 export class AudioEffects {
   private currentBackgroundTrack: LoopSoundName | null = null;
   private lastBackgroundPlayAttempt = 0;

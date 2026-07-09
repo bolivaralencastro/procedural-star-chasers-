@@ -25,7 +25,7 @@ export class EngineInteractions {
     }
     this.firstInteractionHandled = EventHandlersManager.handleMouseMove(
       event,
-      this.engine.getCanvasRef().nativeElement,
+      this.engine.getCanvas(),
       this.engine.renderScale,
       this.engine.cameraPosition,
       this.engine.mouse,
@@ -129,7 +129,7 @@ export class EngineInteractions {
   handleTouchMove(event: TouchEvent) {
     this.longPressTimer = EventHandlersManager.handleTouchMove(
       event,
-      this.engine.getCanvasRef().nativeElement,
+      this.engine.getCanvas(),
       this.engine.renderScale,
       this.engine.cameraPosition,
       this.engine.mouse,
@@ -149,7 +149,7 @@ export class EngineInteractions {
 
     const result = EventHandlersManager.handleMouseDown(event, {
       contextMenu: this.engine.contextMenu,
-      contextMenuElement: this.engine.getContextMenuRef?.()?.nativeElement,
+      contextMenuElement: this.engine.getContextMenuEl?.(),
       mouseInteractionEnabled: this.engine.mouseInteractionEnabled(),
       wormhole: this.engine.wormhole,
       mouse: this.engine.mouse,
@@ -157,7 +157,7 @@ export class EngineInteractions {
       onShowContextMenu: (x, y) => this.showContextMenu(x, y),
       onCloseContextMenu: () => {
         this.engine.contextMenu.visible = false;
-        this.engine.deps.cdr.detectChanges();
+        this.engine.deps.notifyUi();
       },
       onCreateWormhole: () => this.engine.updater.createWormhole(),
     });
@@ -172,7 +172,7 @@ export class EngineInteractions {
     }
 
     const result = EventHandlersManager.handleTouchStart(event, {
-      canvas: this.engine.getCanvasRef().nativeElement,
+      canvas: this.engine.getCanvas(),
       renderScale: this.engine.renderScale,
       cameraPosition: this.engine.cameraPosition,
       isMobile: this.engine.isMobile(),
@@ -184,11 +184,11 @@ export class EngineInteractions {
       onFirstInteraction: this.handleFirstInteraction.bind(this),
       onCloseContextMenu: () => {
         this.engine.contextMenu.visible = false;
-        this.engine.deps.cdr.detectChanges();
+        this.engine.deps.notifyUi();
       },
       onCloseMobileMenu: () => {
         this.engine.mobileMenuVisible.set(false);
-        this.engine.deps.cdr.detectChanges();
+        this.engine.deps.notifyUi();
       },
       onShowContextMenu: (x, y) => this.showContextMenu(x, y),
       onCreateWormhole: () => this.engine.updater.createWormhole(),
@@ -226,14 +226,14 @@ export class EngineInteractions {
     if (this.engine.isMobile()) {
       this.engine.contextMenu.visible = false;
       this.engine.mobileMenuVisible.set(false);
-      this.engine.deps.cdr.detectChanges();
+      this.engine.deps.notifyUi();
       return;
     }
     event.preventDefault();
     event.stopPropagation();
     this.engine.mouseInteractionEnabled.update(v => !v);
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   onToggleAudio(event: Event) {
@@ -241,7 +241,7 @@ export class EngineInteractions {
     event.stopPropagation();
     this.engine.deps.audioService.toggleMute();
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   onToggleFullscreen(event: Event) {
@@ -249,7 +249,7 @@ export class EngineInteractions {
     event.stopPropagation();
     this.engine.deps.onToggleFullscreen();
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   onToggleWakeLock(event: Event) {
@@ -257,7 +257,7 @@ export class EngineInteractions {
     event.stopPropagation();
     this.engine.deps.wakeLockService.toggleWakeLock();
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   onOpenAbout(event: Event) {
@@ -266,13 +266,13 @@ export class EngineInteractions {
     this.engine.deps.onOpenAbout();
     this.engine.contextMenu.visible = false;
     this.engine.mobileMenuVisible.set(false);
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   toggleMobileMenu() {
     this.engine.mobileMenuVisible.update(v => !v);
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   toggleConstellationMode() {
@@ -285,7 +285,7 @@ export class EngineInteractions {
     }
 
     this.engine.contextMenu.visible = false;
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
     ConstellationManager.assignConstellationFormation(
       this.engine.ships,
       this.engine.targetStar,
@@ -358,16 +358,16 @@ export class EngineInteractions {
   }
 
   private updateCursorVisibility() {
-    if (!this.engine.getCanvasRef()) {
+    if (!this.engine.getCanvas()) {
       return;
     }
-    InputManager.updateCursorVisibility(this.engine.getCanvasRef().nativeElement, this.engine.controlledShipId);
+    InputManager.updateCursorVisibility(this.engine.getCanvas(), this.engine.controlledShipId);
   }
 
   private showContextMenu(clientX: number, clientY: number): ContextMenuState {
-    const rect = this.engine.getCanvasRef().nativeElement.getBoundingClientRect();
+    const rect = this.engine.getCanvas().getBoundingClientRect();
     this.engine.contextMenu = InputManager.showContextMenu(clientX, clientY, rect, this.engine.contextMenu);
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
     return this.engine.contextMenu;
   }
 

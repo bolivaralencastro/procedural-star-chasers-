@@ -26,8 +26,8 @@ export class AppComponent implements OnDestroy {
   @ViewChild(AboutDialogComponent) aboutDialog?: AboutDialogComponent;
   
   private platformId = inject(PLATFORM_ID);
-  audioService = inject(AudioService);
-  private screenWakeLockService = inject(ScreenWakeLockService);
+  audioService = AudioService.shared;
+  private screenWakeLockService = ScreenWakeLockService.shared;
   
   private clockIntervalId?: number;
   currentTime = signal(new Date());

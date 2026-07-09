@@ -73,7 +73,7 @@ export class EngineUpdater {
     this.updateShipCollisions();
     this.checkStarCapture(); // Add star capture detection
     this.updateCamera();
-    this.engine.deps.cdr.detectChanges();
+    this.engine.deps.notifyUi();
   }
 
   draw() {
@@ -81,7 +81,7 @@ export class EngineUpdater {
   }
 
   setupCanvas() {
-    const setup = CanvasManager.setupCanvas(this.engine.getCanvasRef().nativeElement);
+    const setup = CanvasManager.setupCanvas(this.engine.getCanvas());
     this.engine.isMobile.set(setup.isMobile);
     this.engine.mouseInteractionEnabled.set(!setup.isMobile);
     this.engine.renderScale = setup.renderScale;
@@ -462,7 +462,7 @@ export class EngineUpdater {
   }
 
   wrapText(text: string, maxWidth: number): string[] {
-    const ctx = this.engine.getCanvasRef().nativeElement.getContext('2d');
+    const ctx = this.engine.getCanvas().getContext('2d');
     if (!ctx) return [text];
     
     ctx.save();

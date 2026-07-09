@@ -1,9 +1,5 @@
-import { Injectable } from '@angular/core';
 import { AudioLoader, LoopSoundName, PooledSoundName, SoundAssetName, SoundName } from './audio-loader';
 
-@Injectable({
-  providedIn: 'root',
-})
 export class AudioPlayback {
   private brokenSounds = new Set<SoundAssetName>();
 

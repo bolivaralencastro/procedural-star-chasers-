@@ -16,17 +16,17 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
   @Input() isFullscreen = false;
 
   private cdr = inject(ChangeDetectorRef);
-  public audioService = inject(AudioService);
-  public wakeLockService = inject(ScreenWakeLockService);
-  private radioService = inject(RadioChatterService);
-  private constellationService = inject(ConstellationService);
+  public audioService = AudioService.shared;
+  public wakeLockService = ScreenWakeLockService.shared;
+  private radioService = RadioChatterService.shared;
+  private constellationService = ConstellationService.shared;
 
   private engine = new StarChasersEngine({
     audioService: this.audioService,
     wakeLockService: this.wakeLockService,
     radioService: this.radioService,
     constellationService: this.constellationService,
-    cdr: this.cdr,
+    notifyUi: () => this.cdr.detectChanges(),
     onToggleFullscreen: () => this.toggleFullscreenRequest.emit(),
     onOpenAbout: () => this.openAboutRequest.emit(),
   });
@@ -163,7 +163,7 @@ export class StarChasersBase implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    this.engine.attachView(() => this.canvasRef, () => this.contextMenuRef);
+    this.engine.attachView(() => this.canvasRef.nativeElement, () => this.contextMenuRef?.nativeElement);
     this.engine.initialize();
   }
 

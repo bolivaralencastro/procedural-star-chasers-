@@ -1,13 +1,16 @@
-import { Injectable } from '@angular/core';
 import { Ship } from '../models/ship';
 import { Vector2D } from '../models/vector2d';
 
 export type ConstellationPattern = 'heart' | 'star' | 'spiral';
 
-@Injectable({
-  providedIn: 'root'
-})
 export class ConstellationService {
+  /** App-wide singleton — replaces Angular's providedIn: 'root'. */
+  private static instance: ConstellationService | null = null;
+
+  static get shared(): ConstellationService {
+    return (ConstellationService.instance ??= new ConstellationService());
+  }
+
   private patterns: Record<ConstellationPattern, Vector2D[]> = {
     heart: [],
     star: [],

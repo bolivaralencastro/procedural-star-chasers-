@@ -1,4 +1,4 @@
-import { ElementRef, ChangeDetectorRef, signal } from '@angular/core';
+import { signal } from '../../game/core/reactive';
 import { AudioService } from '../../services/audio.service';
 import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
 import { RadioChatterService, RadioContext } from '../../services/radio-chatter.service';
@@ -26,14 +26,15 @@ export interface StarChasersEngineDeps {
   wakeLockService: ScreenWakeLockService;
   radioService: RadioChatterService;
   constellationService: ConstellationService;
-  cdr: ChangeDetectorRef;
+  /** Asks the host UI to re-render after engine state changes. */
+  notifyUi: () => void;
   onToggleFullscreen: () => void;
   onOpenAbout: () => void;
 }
 
 export class StarChasersEngine {
-  public getCanvasRef!: () => ElementRef<HTMLCanvasElement>;
-  public getContextMenuRef?: () => ElementRef<HTMLDivElement> | undefined;
+  public getCanvas!: () => HTMLCanvasElement;
+  public getContextMenuEl?: () => HTMLDivElement | undefined;
   public ctx!: CanvasRenderingContext2D;
   private currentCanvasElement?: HTMLCanvasElement;
   private animationFrameId?: number;
@@ -110,9 +111,9 @@ export class StarChasersEngine {
 
   constructor(public readonly deps: StarChasersEngineDeps) {}
 
-  attachView(getCanvasRef: () => ElementRef<HTMLCanvasElement>, getContextMenuRef: () => ElementRef<HTMLDivElement> | undefined) {
-    this.getCanvasRef = getCanvasRef;
-    this.getContextMenuRef = getContextMenuRef;
+  attachView(getCanvas: () => HTMLCanvasElement, getContextMenuEl: () => HTMLDivElement | undefined) {
+    this.getCanvas = getCanvas;
+    this.getContextMenuEl = getContextMenuEl;
   }
 
   initialize() {
@@ -122,7 +123,7 @@ export class StarChasersEngine {
   }
 
   private updateCanvasContext() {
-    const canvas = this.getCanvasRef().nativeElement;
+    const canvas = this.getCanvas();
     if (canvas !== this.currentCanvasElement) {
       this.currentCanvasElement = canvas;
       this.ctx = canvas.getContext('2d')!;

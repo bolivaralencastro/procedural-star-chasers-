@@ -1,4 +1,3 @@
-import { Injectable } from '@angular/core';
 import { ShipColor } from '../models/ship-personas';
 import { RadioContext } from '../models/radio-chatter';
 import { RED_LINES } from '../data/radio-chatter/red-lines';
@@ -9,8 +8,14 @@ export type { RadioContext };
 
 type LinePools = Record<ShipColor, Record<RadioContext, string[]>>;
 
-@Injectable({ providedIn: 'root' })
 export class RadioChatterService {
+  /** App-wide singleton — replaces Angular's providedIn: 'root'. */
+  private static instance: RadioChatterService | null = null;
+
+  static get shared(): RadioChatterService {
+    return (RadioChatterService.instance ??= new RadioChatterService());
+  }
+
   private readonly messageDuration = 4500;
   private readonly globalCooldownRange: [number, number] = [3200, 5200];
   private readonly contextCooldowns: Record<RadioContext, [number, number]> = {

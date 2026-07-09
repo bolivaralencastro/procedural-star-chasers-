@@ -1,14 +1,16 @@
-import { Injectable, signal } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { signal } from '../game/core/reactive';
 
-@Injectable({
-  providedIn: 'root'
-})
 export class ScreenWakeLockService {
   private wakeLock: WakeLockSentinel | null = null;
   private isSupported = signal(false);
   private isEnabled = signal(false);
-  private platformId: any;
+
+  /** App-wide singleton — replaces Angular's providedIn: 'root'. */
+  private static instance: ScreenWakeLockService | null = null;
+
+  static get shared(): ScreenWakeLockService {
+    return (ScreenWakeLockService.instance ??= new ScreenWakeLockService());
+  }
 
   constructor() {
     this.checkSupport();
