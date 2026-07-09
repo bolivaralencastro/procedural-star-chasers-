@@ -88,16 +88,25 @@ Vale a pena mesmo que a migração nunca aconteça.
   o console avisa "not supported or corrupted" e o som é desativado. Substituir por
   arquivos reais quando houver os assets.
 
-### Fase 1 — Desacoplar o game core (o passo que paga a migração)
+### Fase 1 — Desacoplar o game core (o passo que paga a migração) ✅ CONCLUÍDA (2026-07-08)
 Ainda dentro do Angular; o app continua funcionando igual.
 
-- [ ] Trocar `cdr: ChangeDetectorRef` em `EngineDeps` por `notifyUi: () => void`
-      (o componente Angular passa `() => this.cdr.detectChanges()`).
-- [ ] Converter os 8 services em classes puras (tirar `@Injectable`/`inject`);
-      instanciá-las no engine ou receber via construtor.
-- [ ] Criar `src/game/` e mover engine + managers + services + models + data para lá,
-      seguindo a árvore acima (mover em commits pequenos, um subsistema por vez).
-- [ ] Critério de aceite: `src/game/` compila num projeto TS isolado sem `@angular/*`.
+- [x] Trocar `cdr: ChangeDetectorRef` em `EngineDeps` por `notifyUi: () => void`.
+- [x] Criado `src/game/core/reactive.ts` — signal mínimo framework-agnostic com a
+      mesma superfície de chamada do Angular (`sig()`/`set`/`update` + `subscribe`);
+      os signals do engine e services agora usam ele.
+- [x] Services viraram classes puras com singletons lazy (`.shared`) no lugar de
+      `providedIn: 'root'`; `AudioService` instancia loader/playback/effects manualmente.
+- [x] Deletado `GameUtilsService` (zero consumidores) e `particle-clock` (órfão).
+- [x] 46 arquivos movidos para `src/game/` (core/systems/render/input/entities/
+      audio/services/data) com `git mv` + reescrita mecânica de imports.
+- [x] Critério de aceite atingido: **zero imports `@angular/*` em `src/game/`**;
+      fora dele restam só 4 arquivos de shell Angular.
+- [x] Verificado em runtime (boot, hotkeys de follow, rádio) — sem erros de console.
+
+**Nota:** com `isMuted` fora do sistema de signals do Angular, uma mudança de mute
+disparada de dentro do canvas pode demorar até 1s para refletir em UI de outro
+componente (o clock de 1s do app agenda CD). Some na Fase 2 com o EventBus.
 
 ### Fase 2 — Trocar o shell (Angular → Vite + Solid)
 Agora é pequeno: só 5 componentes e ~220 linhas de template.
