@@ -2,8 +2,8 @@ import { Component, ChangeDetectionStrategy, signal, inject, PLATFORM_ID, afterN
 import { StarChasersComponent } from './components/star-chasers/star-chasers.component';
 import { AboutDialogComponent } from './components/about-dialog/about-dialog.component';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { AudioService } from './services/audio.service';
-import { ScreenWakeLockService } from './services/screen-wake-lock.service';
+import { AudioService } from './game/audio/audio.service';
+import { ScreenWakeLockService } from './game/services/screen-wake-lock.service';
 
 export interface Score {
   color: 'Red' | 'Green' | 'Blue';

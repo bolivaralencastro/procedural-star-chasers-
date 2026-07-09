@@ -1,11 +1,11 @@
 import { AfterViewInit, ChangeDetectorRef, Directive, ElementRef, EventEmitter, HostListener, Input, OnDestroy, Output, ViewChild, inject } from '@angular/core';
-import { AudioService } from '../../services/audio.service';
-import { ScreenWakeLockService } from '../../services/screen-wake-lock.service';
-import { RadioChatterService } from '../../services/radio-chatter.service';
-import { ConstellationService } from '../../services/constellation.service';
-import { StarChasersEngine } from './star-chasers.engine';
-import { Ship } from '../../models/ship';
-import { ContextMenuState, MouseState } from './input-manager';
+import { AudioService } from '../../game/audio/audio.service';
+import { ScreenWakeLockService } from '../../game/services/screen-wake-lock.service';
+import { RadioChatterService } from '../../game/services/radio-chatter.service';
+import { ConstellationService } from '../../game/services/constellation.service';
+import { StarChasersEngine } from '../../game/core/star-chasers.engine';
+import { Ship } from '../../game/entities/ship';
+import { ContextMenuState, MouseState } from '../../game/input/input-manager';
 
 @Directive()
 export class StarChasersBase implements AfterViewInit, OnDestroy {
