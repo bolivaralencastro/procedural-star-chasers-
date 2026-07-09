@@ -167,3 +167,35 @@ sendo observado numa janela em segundo plano), então também foi descartado.
 Protocolo: **uma fase por vez, sempre com o sampler antes/depois nas condições
 1× e 6×**, commit por fase com os números no corpo da mensagem — igual ao
 processo do refactor (`docs/REFACTORING_PLAN.md`).
+
+---
+
+## Status final (2026-07-09) — todas as fases executadas
+
+**Meta principal atingida: contemplação fluida sem travadinhas.**
+
+| Métrica | Baseline | Depois | Meta |
+|---|---|---|---|
+| p95 frame @6× throttle | 20.2 ms | **10.7 ms** | ≤ 16.7 ms ✅ |
+| Frames com jank (>20ms) @6× | 21/300 (7%) | **0** | 0 ✅ |
+| Forced reflow (trace 12s) | 74 ms | **36 ms** | (load, não loop) ✅ |
+| Heap (prod, steady) | — | 3.6–4.6 MB, GC nursery | saudável ✅ |
+| Entidades desenhadas (seguindo nave) | 234/234 | **12/234** | culling ✅ |
+
+**O que foi feito:** P0 instrumentação (PerfMonitor + overlay `?debug=perf`),
+P1 viewport culling + estrelas/partículas sem alocação de string, P3 throttle
+do HUD a 15 Hz, P4 reduced-motion.
+
+**O que foi conscientemente adiado/rejeitado (decisões baseadas em medição):**
+- **P1.2 sprites de glow** — gradientes são ~5/frame, não hot; orçamento já batido.
+- **P2 GC reduction** — GCs são de nursery (sub-ms), 0 jank; ganho marginal hoje.
+- **P3.1/3.3 transform/rect-cache** — reflow por frame já negligível após o throttle.
+- **P4.1 idle-30fps** — errado para um toy de contemplação (throttlaria enquanto
+  o usuário observa); economia real de bateria (aba oculta) já é grátis via rAF.
+
+**Reavaliar (gatilhos):** trace de GPU em **mobile real** apontando rasterização
+de gradiente; sessão de 5+ min com major GC/hitch; ou aumento grande na densidade
+de naves/partículas → aí valem P1.2, P2 e eventualmente PixiJS via o seam `Renderer`.
+
+Ferramenta de verificação contínua: `?debug=perf` mostra fps/p95/jank/heap/
+entidades a qualquer momento, em qualquer dispositivo.
