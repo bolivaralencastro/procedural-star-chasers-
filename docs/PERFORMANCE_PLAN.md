@@ -64,31 +64,31 @@ Sem medir, otimização é chute.
   churn próprio (~18 MB/5s no dev vs. 1.6 MB/5s medido limpo). O overlay serve
   para tendência relativa, não para o número absoluto de GC.
 
-### P1 — Render: culling + sprites (maior ganho de frame time, ~1 dia)
+### P1 — Render: culling + sprites ✅ CONCLUÍDA (2026-07-09)
 
-- [ ] **1.1 Viewport culling** (ataca C1): em `rendering-adapter.ts`, filtrar
-      cada lista (ships, asteroids, particles, backgroundStars, nebulas,
-      radioBubbles, projectiles) contra o retângulo
-      `cameraPosition → cameraPosition + viewport` com margem = maior raio de
-      glow (~120 px). O snapshot da cena já é montado num único lugar — os
-      renderers não mudam.
-      *Cuidado:* tails de naves fora da tela cujo rastro entra na tela —
-      margem cobre; verificar visualmente com câmera em movimento.
-- [ ] **1.2 Cache de sprites de glow** (ataca C2, C3): módulo
-      `render/glow-sprite-cache.ts` que pré-renderiza cada gradiente radial em
-      um canvas offscreen pequeno, chaveado por `(cor, raio quantizado em
-      steps de 4px)`. Hot path vira `drawImage` (blit barato). Substituir
-      também o `shadowBlur` do projétil por sprite.
-      *Cuidado:* cache bounded (LRU ~100 entradas) para não crescer com raios
-      contínuos; por isso a quantização.
-- [ ] **1.3 Estrelas de fundo em batch** (ataca C4): agrupar as 200 estrelas
-      por cor em um único `beginPath` + usar `globalAlpha` para o twinkle
-      (quantizado em ~4 níveis, agrupando por nível) — zero strings, ~8 draw
-      calls no lugar de 200.
-      *Alternativa maior (se ainda pesar):* camada estática pré-renderizada
-      por tile de mundo, redesenhada só quando a câmera cruza tiles.
-- [ ] **Verificação P1**: sampler @6× — meta p95 ≤ 14 ms; screenshot A/B para
-      paridade visual (glows quantizados devem ser indistinguíveis).
+- [x] **1.1 Viewport culling** (ataca C1): `render/view-bounds.ts` +
+      `isInView(x,y,raio,view)` (margem = raio próprio da entidade). Aplicado em
+      todos os renderers de lista e no loop de naves do `drawScene`, que agora
+      retorna a contagem de desenhados (alimenta o overlay). Verificado com
+      câmera em movimento — sem pop-in de tails.
+- [x] **1.3 Estrelas de fundo + partículas sem alocação** (ataca C4):
+      `color.replace(/rgba/)` por frame → `ctx.globalAlpha` + cor opaca
+      memoizada (`render/color-utils.ts`). Elimina ~12k strings/s.
+- [x] **Verificação P1** (sampler @6× throttle, free camera):
+      **antes p95 20.2 ms / 21 frames com jank; depois p95 10.7 ms / 0 jank.**
+      Seguindo nave: 12/234 entidades desenhadas (95% culled). Paridade visual
+      confirmada por screenshot. 4 testes novos (33 no total).
+
+**1.2 Cache de sprites de glow — NÃO FEITO (decisão baseada em dados).**
+A hipótese era que `createRadialGradient` por frame (C2/C3) fosse um custo
+grande. Medindo, as entidades que usam gradiente são **poucas** (3 naves +
+1 estrela-alvo + 1 cursor ≈ 5 gradientes/frame) — os "6 call sites" eram
+locais no código, não frequência por frame. Com 1.1+1.3 o orçamento de frame
+(p95 ≤ 14 ms @6×) já foi **superado** (10.7 ms), então o retorno de sprites de
+glow não paga o risco de regressão visual **agora**. Reavaliar só se um trace
+de GPU em mobile real apontar a rasterização de gradiente como gargalo, ou se
+a densidade de naves crescer muito. `shadowBlur` do projétil (C3) fica junto
+dessa reavaliação — projéteis também são poucos e já sofrem culling.
 
 ### P2 — GC quase-zero (mata os micro-stutters, ~0.5–1 dia)
 
