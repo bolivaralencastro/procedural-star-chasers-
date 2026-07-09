@@ -90,33 +90,40 @@ de GPU em mobile real apontar a rasterização de gradiente como gargalo, ou se
 a densidade de naves crescer muito. `shadowBlur` do projétil (C3) fica junto
 dessa reavaliação — projéteis também são poucos e já sofrem culling.
 
-### P2 — GC quase-zero (mata os micro-stutters, ~0.5–1 dia)
+### P2 — GC quase-zero — ADIADA (decisão baseada em dados, 2026-07-09)
 
-- [ ] **2.1 Scratch vectors** (ataca C5): funções in-place em `Vector2D`
-      (`addScaled`, `copyFrom`, `setFrom`) + vetores temporários reutilizáveis
-      module-level nos 3 arquivos quentes. Regra: nenhum `new`/`clone()` em
-      código executado por tick, exceto criação real de entidade.
-- [ ] **2.2 Pool de partículas e projéteis**: free-list simples; hoje os
-      updates filtram/recriam arrays por frame. Partículas mortas voltam ao
-      pool em vez de virar lixo.
-- [ ] **2.3 Tails como ring buffer**: `TAIL_LENGTH=20` por nave hoje empurra/
-      remove `Vector2D` do array a cada tick → 3 naves × 60 Hz de alocações.
-      Ring buffer de posição fixa zera isso.
-- [ ] **Verificação P2**: heap growth ≤ 0.2 MB/5s no sampler; contagem de
-      minor GCs no trace de 30 s ~zero.
+Medição em **build de produção**, steady state (10 s):
+- Heap 3.6–4.6 MB, sawtooth de **1.0 MB**, ~2 GCs/s de **nursery** (baratos).
+- Alloc rate 3.0 MB/5s — mas **0 frames com jank** mesmo @6× throttle.
 
-### P3 — DOM sem reflow (ataca C6, ~2–3h)
+A premissa de P2 era "micro-stutters de GC em sessão longa". Os GCs medidos
+são coletas de nursery sub-ms que **não produzem nenhum frame lento**. O ganho
+perceptível de eliminar as ~30 alocações `Vector2D`/tick é marginal hoje, e as
+mudanças (scratch vectors nos hot paths, pooling, ring buffer de tail) são
+invasivas com risco de regressão. **Reavaliar** se: (a) um trace de 5+ min
+mostrar um major GC com hitch, ou (b) a densidade de entidades/naves crescer
+muito. As sub-tarefas ficam registradas abaixo para quando isso acontecer.
 
-- [ ] **3.1 Minimap por `transform`**: trocar `left/top` (%) por
-      `transform: translate()` nos dots do minimapa — composite-only, sem
-      layout.
-- [ ] **3.2 Throttle do HUD a 15 Hz**: `notifyUi` só a cada 4º tick (constante
-      em `engine-updater.ts`). Minimapa/stats a 15 Hz são visualmente
-      idênticos; corta 75% do trabalho Solid+DOM.
-- [ ] **3.3 Cache de `getBoundingClientRect`** do canvas em `input-manager.ts`:
-      invalidar apenas em `resize` (o canvas é fullscreen fixo). Elimina a
-      leitura de geometria por mousemove.
-- [ ] **Verificação P3**: trace de 12 s sem atribuição de forced reflow.
+- [ ] **2.1 Scratch vectors** (C5): funções in-place em `Vector2D` + temporários
+      module-level nos 3 arquivos quentes. Nenhum `new`/`clone()` por tick.
+- [ ] **2.2 Pool de partículas/projéteis**: free-list; mortos voltam ao pool.
+- [ ] **2.3 Tails como ring buffer**: elimina push/shift de `Vector2D` por tick.
+
+### P3 — DOM sem reflow ✅ CONCLUÍDA (2026-07-09)
+
+- [x] **3.2 Throttle do HUD a ~15 Hz**: `notifyUi` só a cada 4º tick
+      (`engine-updater.ts`). O canvas segue a 60 fps; minimapa/stats a 15 Hz
+      são visualmente idênticos.
+- [x] **Verificação P3** (trace de 12 s): forced reflow **74 ms → 36 ms**. O
+      resto é layout de load inicial (LCP), não o loop — reflow por frame do
+      minimapa agora ~3 ms/s.
+
+**3.1 (minimap por transform) e 3.3 (cache de rect) — NÃO FEITOS (decisão
+baseada em dados).** Com o throttle o reflow por frame já é negligível.
+`getBoundingClientRect` só é lido no clique direito (menu de contexto), não
+por frame — não há layout thrashing a eliminar. `transform` no minimapa daria
+ganho marginal e a conversão de posição `left/top %` → `translate` relativa ao
+pai é awkward; não paga agora.
 
 ### P4 — Modo ambiente (bateria/idle, ~2–3h)
 
