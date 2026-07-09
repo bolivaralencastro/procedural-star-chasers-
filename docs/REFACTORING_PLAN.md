@@ -108,17 +108,27 @@ Ainda dentro do Angular; o app continua funcionando igual.
 disparada de dentro do canvas pode demorar até 1s para refletir em UI de outro
 componente (o clock de 1s do app agenda CD). Some na Fase 2 com o EventBus.
 
-### Fase 2 — Trocar o shell (Angular → Vite + Solid)
-Agora é pequeno: só 5 componentes e ~220 linhas de template.
+### Fase 2 — Trocar o shell (Angular → Vite + Solid) ✅ CONCLUÍDA (2026-07-08)
 
-- [ ] `npm create vite` (template solid-ts) em paralelo; apontar para o mesmo `src/game/`.
-- [ ] Portar templates: `app.component.html` (34 linhas), `star-chasers.component.html`
-      (184 linhas — HUD/minimap/menus) e `about-dialog`.
-- [ ] Ligar EventBus → signals do Solid (substitui `notifyUi`).
-- [ ] Migrar Tailwind para o plugin Vite v4.
-- [ ] Verificação: paridade visual/funcional lado a lado (desktop + mobile),
-      depois deletar `@angular/*`, `angular.json`, `index.tsx`.
-- [ ] Medir: bundle antes/depois (meta: shell de UI < 15 KB gzip vs. framework atual).
+- [x] Vite + `vite-plugin-solid` + `@tailwindcss/vite` configurados direto no projeto.
+- [x] Templates portados: `src/ui/App.tsx`, `src/ui/StarChasers.tsx` (canvas host,
+      navigator/minimap, context menu, menu mobile), `src/ui/AboutDialog.tsx`.
+- [x] `src/ui/game-bridge.ts`: `fromGameSignal()` (signal do core → Solid) e
+      `createFrameTick()` (o `notifyUi` do engine vira um tick por frame que
+      alimenta os reads finos do Solid) — resolve também a staleness de mute
+      anotada na Fase 1.
+- [x] Tailwind v4 compilado no build (22 kB CSS) — fim do Play CDN em runtime.
+- [x] Descoberto e removido importmap morto no `index.html` (Angular/RxJS de CDN,
+      resquício do AI Studio); CSP ajustada.
+- [x] Assets movidos para `public/`; `@angular/*`, `angular.json`, `index.tsx` e
+      `src/components/` deletados.
+- [x] **Bundle: 130.48 kB JS (39.43 kB gzip) + 22.2 kB CSS** — antes: 252.8 kB
+      (68.6 kB) + Tailwind CDN em runtime. Transfer total ~-45%.
+- [x] Verificado em browser: boot, hotkeys, context menu com stats ao vivo,
+      diálogo Sobre (abrir/fechar por Escape), sem erros de console.
+
+**Pendência consciente:** paridade mobile (menu flutuante/touch) verificada só por
+código, não em dispositivo — testar num celular real na próxima oportunidade.
 
 ### Fase 3 — Rede de segurança e qualidade contínua
 - [ ] Vitest cobrindo os sistemas puros: colisão, IA/behavior, spawn, scoring
