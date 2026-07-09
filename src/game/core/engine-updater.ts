@@ -14,7 +14,8 @@ import { ShipBehaviorManager } from '../systems/ship-behavior-manager';
 import { StarEventManager } from '../systems/star-event-manager';
 import type { StarChasersEngine } from './star-chasers.engine';
 import { WormholeManager } from '../systems/wormhole-manager';
-import { renderGame } from '../render/rendering-adapter';
+import { Canvas2DRenderer, Renderer } from '../render/renderer';
+import { GameSystem } from './game-system';
 import { scheduleNextStar } from '../systems/target-star-adapter';
 import { AudioLoopCoordinator } from './audio-loop-coordinator';
 import { EventLoopCoordinator } from './event-loop-coordinator';
@@ -54,30 +55,42 @@ export class EngineUpdater {
     });
   }
 
-  update() {
-    const deltaTime = 16.67;
-    this.eventCoordinator.handleEvents(deltaTime);
-    this.updateGameSounds();
-    this.updateRescueAttempts(); // Process rescue attempts before other updates
-    this.updateWormhole();
-    this.updateProjectiles();
-    this.updateAsteroids();
-    this.updateProjectileAsteroidCollisions();
-    this.maybeEndAsteroidEvent();
-    this.updateParticles();
-    this.updateExplosionParticles();
-    this.updateNebulas();
-    this.updatePhilosophicalChatter();
-    this.updateRadioBubbles();
-    this.engine.ships.forEach(ship => this.updateShip(ship));
-    this.updateShipCollisions();
-    this.checkStarCapture(); // Add star capture detection
-    this.updateCamera();
+  /**
+   * The ordered update pipeline. Each entry runs once per fixed 60 Hz tick.
+   * To add a feature, append (or insert) a system here — see GameSystem.
+   */
+  private readonly systems: GameSystem[] = [
+    { name: 'events', update: dt => this.eventCoordinator.handleEvents(dt) },
+    { name: 'game-sounds', update: () => this.updateGameSounds() },
+    { name: 'rescues', update: () => this.updateRescueAttempts() }, // before other updates
+    { name: 'wormhole', update: () => this.updateWormhole() },
+    { name: 'projectiles', update: () => this.updateProjectiles() },
+    { name: 'asteroids', update: () => this.updateAsteroids() },
+    { name: 'projectile-asteroid-collisions', update: () => this.updateProjectileAsteroidCollisions() },
+    { name: 'asteroid-event-end', update: () => this.maybeEndAsteroidEvent() },
+    { name: 'particles', update: () => this.updateParticles() },
+    { name: 'explosion-particles', update: () => this.updateExplosionParticles() },
+    { name: 'nebulas', update: () => this.updateNebulas() },
+    { name: 'philosophical-chatter', update: () => this.updatePhilosophicalChatter() },
+    { name: 'radio-bubbles', update: () => this.updateRadioBubbles() },
+    { name: 'ships', update: () => this.engine.ships.forEach(ship => this.updateShip(ship)) },
+    { name: 'ship-collisions', update: () => this.updateShipCollisions() },
+    { name: 'star-capture', update: () => this.checkStarCapture() },
+    { name: 'camera', update: () => this.updateCamera() },
+  ];
+
+  /** Swappable rendering backend (Canvas 2D today, PixiJS-ready seam). */
+  public renderer: Renderer = new Canvas2DRenderer();
+
+  update(dt: number = 1000 / 60) {
+    for (const system of this.systems) {
+      system.update(dt);
+    }
     this.engine.deps.notifyUi();
   }
 
   draw() {
-    renderGame(this.engine);
+    this.renderer.render(this.engine);
   }
 
   setupCanvas() {

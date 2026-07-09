@@ -1,4 +1,5 @@
 import { signal } from '../core/reactive';
+import { SettingsStore } from '../services/settings-store';
 import { AudioEffects } from './audio-effects';
 import {
   AudioLoader,
@@ -11,7 +12,7 @@ import { AudioPlayback } from './audio-playback';
 export type { LoopSoundName, PooledSoundName, SoundName } from './audio-loader';
 
 export class AudioService {
-  isMuted = signal(false);
+  isMuted = signal(SettingsStore.get('muted', false));
 
   private audioContextUnlocked = false;
   private firstInteractionHandled = false;
@@ -46,6 +47,7 @@ export class AudioService {
 
     const newMutedState = !this.isMuted();
     this.isMuted.set(newMutedState);
+    SettingsStore.set('muted', newMutedState);
 
     this.audioEffects.applyMuteState(newMutedState, this.audioContextUnlocked);
   }

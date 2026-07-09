@@ -251,9 +251,35 @@ export class StarChasersEngine {
     this.cameraPosition.y = Math.max(0, Math.min(maxY, centerY - this.viewportHeight / 2));
   }
 
-  private gameLoop = () => {
+  // Fixed-timestep loop: physics always advances in 60 Hz ticks regardless of
+  // display refresh rate (previously one update per rAF frame, which ran the
+  // simulation 2x fast on 120 Hz screens). Rendering still happens every frame.
+  private static readonly TICK_MS = 1000 / 60;
+  private static readonly MAX_TICKS_PER_FRAME = 5; // avoid spiral of death after tab sleeps
+
+  private lastFrameTime = 0;
+  private tickAccumulator = 0;
+
+  private gameLoop = (now: number = performance.now()) => {
     this.updateCanvasContext();
-    this.updater.update();
+
+    if (this.lastFrameTime === 0) {
+      this.lastFrameTime = now;
+    }
+    // Clamp long gaps (backgrounded tab) so we don't fast-forward the world
+    this.tickAccumulator += Math.min(now - this.lastFrameTime, 250);
+    this.lastFrameTime = now;
+
+    let ticks = 0;
+    while (this.tickAccumulator >= StarChasersEngine.TICK_MS && ticks < StarChasersEngine.MAX_TICKS_PER_FRAME) {
+      this.updater.update();
+      this.tickAccumulator -= StarChasersEngine.TICK_MS;
+      ticks++;
+    }
+    if (ticks === StarChasersEngine.MAX_TICKS_PER_FRAME) {
+      this.tickAccumulator = 0;
+    }
+
     this.updater.draw();
     this.animationFrameId = requestAnimationFrame(this.gameLoop);
   };
