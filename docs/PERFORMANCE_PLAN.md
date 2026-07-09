@@ -43,15 +43,26 @@ Outras medições:
 
 ## Fases (cada uma termina com medição antes/depois)
 
-### P0 — Instrumentação (pré-requisito, ~1h)
+### P0 — Instrumentação (pré-requisito) ✅ CONCLUÍDA (2026-07-09)
 Sem medir, otimização é chute.
 
-- [ ] **Overlay de perf dev-only** ativado por `?debug=perf`: FPS, p50/p95 dos
-      últimos 300 frames, crescimento de heap, contagem de entidades
-      (naves/asteroides/partículas em tela vs. total). Implementar como
-      componente Solid isolado + sampler de rAF reutilizável em `src/ui/dev/`.
-- [ ] Registrar o protocolo de benchmark neste doc: 300 frames com jogo em
-      estado padrão, CPU 1× e 6× (DevTools), viewport 1920×937.
+- [x] **`PerfMonitor`** (`game/core/perf-monitor.ts`): ring buffer de 300 frames,
+      alocação-zero no hot path; `snapshot()` computa fps/p50/p95/p99/max/jank.
+      5 testes cobrindo (inclusive um bug de sentinela `!== 0` que o teste pegou).
+- [x] Engine chama `perf.frame(now)` no gameLoop e expõe `renderStats {drawn,total}`
+      (populado no `rendering-adapter`; drawn==total até o culling do P1).
+- [x] **Overlay Solid** (`ui/dev/PerfOverlay.tsx`) ativado por `?debug=perf`:
+      FPS, p50/p95, p99/max, jank>20ms, entities drawn/total, heap + growth/5s.
+      Polling a 2 Hz (não por frame) para não distorcer a medida. Verificado no
+      browser: FPS 100, p95 10.8 ms, jank 0, 240 entities.
+
+**Protocolo de benchmark** (usar em todas as fases seguintes):
+- **Frame time**: sampler de 300 frames (script no console) OU o overlay, em
+  CPU 1× e 6× (DevTools throttle), viewport ~1920×937, jogo em estado padrão.
+- **Heap**: sampler standalone em **build de produção** (`npm run build` +
+  `preview`), *sem* o overlay ligado — o overlay e o HMR do dev adicionam
+  churn próprio (~18 MB/5s no dev vs. 1.6 MB/5s medido limpo). O overlay serve
+  para tendência relativa, não para o número absoluto de GC.
 
 ### P1 — Render: culling + sprites (maior ganho de frame time, ~1 dia)
 

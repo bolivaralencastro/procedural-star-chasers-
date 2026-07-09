@@ -20,6 +20,7 @@ import { ContextMenuState, MouseState } from '../input/input-manager';
 import { GAME_CONSTANTS } from './game-constants';
 import { EngineInteractions } from './engine-interactions';
 import { EngineUpdater } from './engine-updater';
+import { PerfMonitor } from './perf-monitor';
 
 export interface StarChasersEngineDeps {
   audioService: AudioService;
@@ -260,7 +261,13 @@ export class StarChasersEngine {
   private lastFrameTime = 0;
   private tickAccumulator = 0;
 
+  /** Frame-time sampler (read by the dev perf overlay). */
+  public readonly perf = new PerfMonitor();
+  /** Entities drawn vs. total this frame — populated by the renderer. */
+  public renderStats = { drawn: 0, total: 0 };
+
   private gameLoop = (now: number = performance.now()) => {
+    this.perf.frame(now);
     this.updateCanvasContext();
 
     if (this.lastFrameTime === 0) {

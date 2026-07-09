@@ -9,6 +9,9 @@ import { createFrameTick, fromGameSignal } from './game-bridge';
 export interface StarChasersApi {
   toggleMobileMenu: () => void;
   inputDisabled: StarChasersEngine['inputDisabled'];
+  /** Perf sampler + render accounting for the dev overlay. */
+  perf: StarChasersEngine['perf'];
+  renderStats: StarChasersEngine['renderStats'];
 }
 
 interface StarChasersProps {
@@ -44,6 +47,8 @@ export function StarChasers(props: StarChasersProps) {
   props.registerApi?.({
     toggleMobileMenu: () => engine.toggleMobileMenu(),
     inputDisabled: engine.inputDisabled,
+    perf: engine.perf,
+    renderStats: engine.renderStats,
   });
 
   // Frame-driven reads of live engine state (equivalent of the old getters

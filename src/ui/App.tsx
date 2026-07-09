@@ -3,6 +3,7 @@ import { AudioService } from '../game/audio/audio.service';
 import { ScreenWakeLockService } from '../game/services/screen-wake-lock.service';
 import { StarChasers, type StarChasersApi } from './StarChasers';
 import { AboutDialog } from './AboutDialog';
+import { PerfOverlay } from './dev/PerfOverlay';
 
 function formatTime(date: Date): string {
   const hours = date.getHours().toString().padStart(2, '0');
@@ -25,6 +26,8 @@ export function App() {
   const [aboutOpen, setAboutOpen] = createSignal(false);
 
   let starChasersApi: StarChasersApi | undefined;
+  const [perfApi, setPerfApi] = createSignal<StarChasersApi | undefined>();
+  const debugPerf = new URLSearchParams(window.location.search).has('debug');
 
   const formattedTime = createMemo(() => formatTime(currentTime()));
   const formattedDate = createMemo(() => formatDate(currentTime()));
@@ -78,7 +81,10 @@ export function App() {
         isFullscreen={isFullscreen}
         onToggleFullscreenRequest={toggleFullscreen}
         onOpenAboutRequest={openAbout}
-        registerApi={api => (starChasersApi = api)}
+        registerApi={api => {
+          starChasersApi = api;
+          if (debugPerf) setPerfApi(api);
+        }}
       />
 
       <div class="pointer-events-none absolute left-4 top-4 z-40 rounded-2xl border border-white/10 bg-black/55 px-4 py-2 font-mono text-gray-200 shadow-xl backdrop-blur-md">
@@ -106,6 +112,11 @@ export function App() {
 
       {/* About Dialog */}
       <AboutDialog isOpen={aboutOpen} onClose={closeAbout} />
+
+      {/* Dev perf overlay (?debug=perf) */}
+      <Show when={debugPerf && perfApi()}>
+        <PerfOverlay perf={perfApi()!.perf} renderStats={perfApi()!.renderStats} />
+      </Show>
     </div>
   );
 }
