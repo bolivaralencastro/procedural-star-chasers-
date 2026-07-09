@@ -82,11 +82,20 @@ export class EngineUpdater {
   /** Swappable rendering backend (Canvas 2D today, PixiJS-ready seam). */
   public renderer: Renderer = new Canvas2DRenderer();
 
+  // The DOM HUD (minimap dots, ship stats, navigator) is refreshed via
+  // notifyUi. The canvas already renders every frame; the HUD at 60 Hz is
+  // wasted DOM work, so throttle it to ~15 Hz. Imperceptible for a minimap.
+  private static readonly UI_NOTIFY_EVERY = 4;
+  private uiNotifyCounter = 0;
+
   update(dt: number = 1000 / 60) {
     for (const system of this.systems) {
       system.update(dt);
     }
-    this.engine.deps.notifyUi();
+    if (++this.uiNotifyCounter >= EngineUpdater.UI_NOTIFY_EVERY) {
+      this.uiNotifyCounter = 0;
+      this.engine.deps.notifyUi();
+    }
   }
 
   draw() {
