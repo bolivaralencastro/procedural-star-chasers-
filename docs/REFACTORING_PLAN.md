@@ -145,16 +145,32 @@ código, não em dispositivo — testar num celular real na próxima oportunidad
 - [x] GitHub Actions (`.github/workflows/ci.yml`): typecheck + lint + test +
       build + budget em push/PR.
 
-### Fase 4 — Fundação para crescer (interatividade e recursos)
-- [ ] **Loop com timestep fixo** (update a 60 Hz fixo, render interpolado) —
-      física estável em qualquer monitor/dispositivo; pré-requisito para
-      gameplay mais complexo.
-- [ ] Consolidar os ~20 managers em **systems** com interface única
-      (`update(world, dt)`) — adicionar um recurso novo = adicionar um system,
-      sem tocar nos existentes.
-- [ ] Interface `Renderer` estável → habilita PixiJS/WebGL depois, se a contagem
-      de partículas/naves justificar.
-- [ ] Save/config em `localStorage` (volume, preferências) via um `SettingsStore`.
+### Fase 4 — Fundação para crescer (interatividade e recursos) ✅ CONCLUÍDA (2026-07-09)
+- [x] **Loop com timestep fixo a 60 Hz** com acumulador (máx. 5 ticks/frame,
+      clamp de 250 ms pós-background). Corrigiu bug real: em monitores 120 Hz
+      a simulação rodava 2× mais rápido. *Interpolação de render adiada de
+      propósito — exigiria snapshot de estado anterior por entidade; o ganho
+      visual num toy 60 Hz não paga a invasividade hoje.*
+- [x] Pipeline de update virou **`GameSystem[]` nomeado e ordenado** em
+      `EngineUpdater` — adicionar recurso = inserir um system. Os managers
+      continuam como implementação por baixo (consolidação profunda opcional).
+- [x] Interface **`Renderer`** (`render/renderer.ts`) com `Canvas2DRenderer`
+      default — seam pronto para PixiJS/WebGL.
+- [x] **`SettingsStore`** (localStorage, fail-safe) — preferência de mute
+      persiste entre sessões (verificado com reload no browser).
+
+---
+
+## Status final (2026-07-09)
+
+**Todas as 5 fases concluídas.** Stack final: Vite + SolidJS + game core TS puro.
+- Bundle: 131.8 kB JS (39.9 kB gzip) + 22.4 kB CSS — era 717.7 kB + Tailwind CDN.
+- 24 testes, lint com regra de arquitetura, CI, budget de bundle.
+- Backlog sugerido (Fase 5 do plano original): EventBus tipado para novos
+  recursos, replay/screenshot via snapshot, HUD rico, PixiJS se a densidade
+  de partículas crescer. Pendências conhecidas: teste em mobile real;
+  `celebrate.wav`/`engine_hum.wav` corrompidos; Prettier junto com o próximo
+  refactor grande.
 
 ### Fase 5 — Recursos novos (exemplos que a arquitetura destrava)
 - Novos tipos de evento cósmico = novo system + entradas no EventBus.
