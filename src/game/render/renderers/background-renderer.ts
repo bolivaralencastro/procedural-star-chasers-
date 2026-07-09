@@ -8,7 +8,7 @@ export function drawBackgroundStars(
   stars.forEach(star => {
     ctx.beginPath();
     const opacity = star.opacity + Math.sin(now * star.twinkleSpeed) * 0.1;
-    ctx.fillStyle = star.color.replace(/[\d\.]+\)$/g, `${opacity})`);
+    ctx.fillStyle = star.color.replace(/[\d.]+\)$/g, `${opacity})`);
     ctx.arc(star.pos.x, star.pos.y, star.radius, 0, Math.PI * 2);
     ctx.fill();
   });

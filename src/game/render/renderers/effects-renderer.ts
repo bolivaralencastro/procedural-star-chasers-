@@ -15,7 +15,7 @@ export function drawParticles(
   particles.forEach(p => {
     ctx.beginPath();
     const opacity = (p.life / p.maxLife) * 0.8 * targetStar.opacity;
-    ctx.fillStyle = p.color.replace(/[\d\.]+\)$/g, `${opacity})`);
+    ctx.fillStyle = p.color.replace(/[\d.]+\)$/g, `${opacity})`);
     ctx.arc(p.position.x, p.position.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
   });
@@ -261,6 +261,8 @@ export function drawCursor(
     console.error('Error drawing cursor:', e);
     try {
       ctx.restore();
-    } catch {}
+    } catch {
+      // canvas state was already balanced; nothing to restore
+    }
   }
 }

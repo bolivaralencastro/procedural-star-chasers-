@@ -8,18 +8,26 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "convert:og-images": "node scripts/convert-og-images.js"
+    "convert:og-images": "node scripts/convert-og-images.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "solid-js": "^1.9.14"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^22.14.0",
+    "eslint": "^10.6.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.3.2",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.63.0",
     "vite": "^6.2.0",
-    "vite-plugin-solid": "^2.11.12"
+    "vite-plugin-solid": "^2.11.12",
+    "vitest": "^4.1.10"
   }
 }

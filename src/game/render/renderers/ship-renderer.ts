@@ -68,7 +68,7 @@ export function drawShip(
   ctx.rotate(ship.rotation);
 
   // Glow
-  let glowMultiplier =
+  const glowMultiplier =
     ship.color === 'Red' && ship.afterburnerTimer > 0 ? 1.5 : 1;
   const grad = ctx.createRadialGradient(
     0,

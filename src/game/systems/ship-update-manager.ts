@@ -196,8 +196,6 @@ export class ShipUpdateManager {
   ): void {
     if (ship.state !== 'orbiting' && ship.state !== 'launched' && ship.state !== 'paralyzed') {
       let target: Vector2D | null = null;
-      let isRescuing = false;
-      
       if (ship.reloadTimer <= 0 && ship.ammo <= 0) {
         ship.reloadTimer = ship.reloadDuration;
       }
@@ -206,7 +204,6 @@ export class ShipUpdateManager {
       const paralyzedAlly = context.ships.find((s: Ship) => s.id !== ship.id && s.state === 'paralyzed');
       if (paralyzedAlly) {
         target = paralyzedAlly.position;
-        isRescuing = true;
         const dist = Vector2D.distance(ship.position, paralyzedAlly.position);
         if (dist < ship.radius + paralyzedAlly.radius) {
           if (ship.score > 0) {
@@ -245,7 +242,7 @@ export class ShipUpdateManager {
           target = Vector2D.distance(ship.position, pos1) < Vector2D.distance(ship.position, pos2) ? pos1 : pos2;
 
           // Firing logic
-          if (!isRescuing && ship.fireCooldown <= 0 && predictedPosition) {
+          if (ship.fireCooldown <= 0 && predictedPosition) {
             const distanceToTarget = Vector2D.distance(ship.position, asteroidTarget.position);
             const angleToTarget = Math.atan2(
               predictedPosition.y - ship.position.y,

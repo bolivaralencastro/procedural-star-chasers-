@@ -127,23 +127,26 @@ export class ShipBehaviorManager {
     const easeMultiplier = Math.sin(progress * Math.PI);
     
     switch (ship.color) {
-      case 'Red': // Zig-zag
+      case 'Red': { // Zig-zag
         ship.velocity.multiply(0.9);
         const perp = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize();
         if (Math.random() < 0.1) ship.zigZagDir *= -1;
         ship.acceleration.add(perp.multiply(0.5 * ship.zigZagDir * easeMultiplier));
         break;
-      case 'Green': // Spiral
+      }
+      case 'Green': { // Spiral
         const angle = (Date.now() / 200);
         const radius = 2 + 30 * easeMultiplier;
         ship.position.x += Math.cos(angle) * radius * 0.1;
         ship.position.y += Math.sin(angle) * radius * 0.1;
         ship.velocity.multiply(0.9);
         break;
-      case 'Blue': // Loop
+      }
+      case 'Blue': { // Loop
         const turn = new Vector2D(-ship.velocity.y, ship.velocity.x).normalize().multiply(0.3 * easeMultiplier);
         ship.acceleration.add(turn);
         break;
+      }
     }
     ship.velocity.add(ship.acceleration);
     ship.velocity.normalize().multiply(3);
