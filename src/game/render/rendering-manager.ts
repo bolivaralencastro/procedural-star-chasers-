@@ -26,6 +26,7 @@ import {
 } from './renderers/effects-renderer';
 import { drawProjectiles } from './renderers/projectile-renderer';
 import { drawShip, drawShipTail } from './renderers/ship-renderer';
+import { computeViewBounds, isInView, ViewBounds } from './view-bounds';
 
 interface RenderDependencies {
   drawConstellation?: (ctx: CanvasRenderingContext2D, ships: Ship[]) => void;
@@ -61,11 +62,12 @@ interface RenderData {
 }
 
 export class RenderingManager {
+  /** Returns the number of entities actually drawn (after culling). */
   static drawScene(
     ctx: CanvasRenderingContext2D,
     data: RenderData,
     dependencies: RenderDependencies
-  ): void {
+  ): number {
     const {
       renderScale,
       worldWidth,
@@ -105,8 +107,11 @@ export class RenderingManager {
     );
     ctx.clearRect(cameraPosition.x, cameraPosition.y, viewportWidth, viewportHeight);
 
-    RenderingManager.drawBackgroundStars(ctx, backgroundStars);
-    RenderingManager.drawNebulas(ctx, nebulas);
+    const view = computeViewBounds(cameraPosition.x, cameraPosition.y, viewportWidth, viewportHeight);
+    let drawn = 0;
+
+    drawn += RenderingManager.drawBackgroundStars(ctx, backgroundStars, view);
+    drawn += RenderingManager.drawNebulas(ctx, nebulas, view);
 
     if (targetStar.exists) {
       RenderingManager.drawTargetStar(ctx, targetStar);
@@ -114,17 +119,20 @@ export class RenderingManager {
       dependencies.drawStarDespawning(ctx, targetStar);
     }
 
-    RenderingManager.drawParticles(ctx, particles, targetStar);
-    RenderingManager.drawExplosionParticles(ctx, explosionParticles);
+    drawn += RenderingManager.drawParticles(ctx, particles, targetStar, view);
+    drawn += RenderingManager.drawExplosionParticles(ctx, explosionParticles, view);
 
     if (wormhole) {
       RenderingManager.drawWormhole(ctx, wormhole);
     }
 
-    RenderingManager.drawAsteroids(ctx, asteroids);
-    RenderingManager.drawProjectiles(ctx, projectiles);
+    drawn += RenderingManager.drawAsteroids(ctx, asteroids, view);
+    drawn += RenderingManager.drawProjectiles(ctx, projectiles, view);
 
+    // Ships (and their tails) are few; cull by the glow extent (~2.5x radius).
     ships.forEach(ship => {
+      if (!isInView(ship.position.x, ship.position.y, ship.radius * 4, view)) return;
+      drawn++;
       RenderingManager.drawShipTail(ctx, ship);
       RenderingManager.drawShip(ctx, ship, gameMode);
     });
@@ -149,14 +157,15 @@ export class RenderingManager {
     }
 
     ctx.restore();
+    return drawn;
   }
 
-  static drawBackgroundStars(ctx: CanvasRenderingContext2D, stars: BackgroundStar[]): void {
-    drawBackgroundStars(ctx, stars);
+  static drawBackgroundStars(ctx: CanvasRenderingContext2D, stars: BackgroundStar[], view: ViewBounds): number {
+    return drawBackgroundStars(ctx, stars, view);
   }
 
-  static drawNebulas(ctx: CanvasRenderingContext2D, nebulas: Nebula[]): void {
-    drawNebulas(ctx, nebulas);
+  static drawNebulas(ctx: CanvasRenderingContext2D, nebulas: Nebula[], view: ViewBounds): number {
+    return drawNebulas(ctx, nebulas, view);
   }
 
   static drawTargetStar(ctx: CanvasRenderingContext2D, targetStar: TargetStar): void {
@@ -166,21 +175,22 @@ export class RenderingManager {
   static drawParticles(
     ctx: CanvasRenderingContext2D,
     particles: Particle[],
-    targetStar: TargetStar
-  ): void {
-    drawParticles(ctx, particles, targetStar);
+    targetStar: TargetStar,
+    view: ViewBounds
+  ): number {
+    return drawParticles(ctx, particles, targetStar, view);
   }
 
-  static drawExplosionParticles(ctx: CanvasRenderingContext2D, particles: Particle[]): void {
-    drawExplosionParticles(ctx, particles);
+  static drawExplosionParticles(ctx: CanvasRenderingContext2D, particles: Particle[], view: ViewBounds): number {
+    return drawExplosionParticles(ctx, particles, view);
   }
 
-  static drawAsteroids(ctx: CanvasRenderingContext2D, asteroids: Asteroid[]): void {
-    drawAsteroids(ctx, asteroids);
+  static drawAsteroids(ctx: CanvasRenderingContext2D, asteroids: Asteroid[], view: ViewBounds): number {
+    return drawAsteroids(ctx, asteroids, view);
   }
 
-  static drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[]): void {
-    drawProjectiles(ctx, projectiles);
+  static drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[], view: ViewBounds): number {
+    return drawProjectiles(ctx, projectiles, view);
   }
 
   static drawShipTail(ctx: CanvasRenderingContext2D, ship: Ship): void {

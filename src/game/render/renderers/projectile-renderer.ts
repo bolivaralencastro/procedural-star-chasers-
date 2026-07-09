@@ -1,11 +1,20 @@
 import { Projectile } from '../../entities/game-entities';
 import { GAME_CONSTANTS } from '../../core/game-constants';
+import { isInView, ViewBounds } from '../view-bounds';
+
+// Projectiles have no radius field; their trail spans roughly this far, so use
+// it as the cull margin to avoid the trail popping at the screen edge.
+const PROJECTILE_CULL_MARGIN = 60;
 
 export function drawProjectiles(
   ctx: CanvasRenderingContext2D,
-  projectiles: Projectile[]
-): void {
+  projectiles: Projectile[],
+  view: ViewBounds
+): number {
+  let drawn = 0;
   projectiles.forEach(p => {
+    if (!isInView(p.position.x, p.position.y, PROJECTILE_CULL_MARGIN, view)) return;
+    drawn++;
     const lifeRatio = p.life / p.maxLife;
     const fadeThreshold = 0.45;
     const opacityMultiplier = lifeRatio < fadeThreshold ? lifeRatio / fadeThreshold : 1;
@@ -36,4 +45,5 @@ export function drawProjectiles(
     ctx.fill();
     ctx.restore();
   });
+  return drawn;
 }

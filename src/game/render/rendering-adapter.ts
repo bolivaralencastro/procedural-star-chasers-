@@ -10,9 +10,8 @@ export function renderGame(engine: StarChasersEngine) {
     return;
   }
 
-  // Entity accounting for the perf overlay. Without culling (P0) drawn == total;
-  // P1 will subtract off-screen entities from `drawn`.
-  const total =
+  // Entity accounting for the perf overlay: total vs. actually drawn (culled).
+  engine.renderStats.total =
     engine.ships.length +
     engine.asteroids.length +
     engine.projectiles.length +
@@ -21,10 +20,8 @@ export function renderGame(engine: StarChasersEngine) {
     engine.backgroundStars.length +
     engine.nebulas.length +
     engine.radioBubbles.length;
-  engine.renderStats.total = total;
-  engine.renderStats.drawn = total;
 
-  RenderingManager.drawScene(
+  engine.renderStats.drawn = RenderingManager.drawScene(
     ctx,
     {
       backgroundStars: engine.backgroundStars,

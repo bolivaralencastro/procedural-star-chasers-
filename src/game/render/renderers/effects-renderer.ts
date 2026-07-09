@@ -6,26 +6,41 @@ import {
   TargetStar,
   WormholePair,
 } from '../../entities/game-entities';
+import { isInView, ViewBounds } from '../view-bounds';
+import { toOpaqueColor } from '../color-utils';
 
 export function drawParticles(
   ctx: CanvasRenderingContext2D,
   particles: Particle[],
-  targetStar: TargetStar
-): void {
-  particles.forEach(p => {
+  targetStar: TargetStar,
+  view: ViewBounds
+): number {
+  let drawn = 0;
+  ctx.save();
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    if (!isInView(p.position.x, p.position.y, p.radius, view)) continue;
+    // globalAlpha instead of a per-particle rgba() string rebuild.
+    ctx.globalAlpha = (p.life / p.maxLife) * 0.8 * targetStar.opacity;
+    ctx.fillStyle = toOpaqueColor(p.color);
     ctx.beginPath();
-    const opacity = (p.life / p.maxLife) * 0.8 * targetStar.opacity;
-    ctx.fillStyle = p.color.replace(/[\d.]+\)$/g, `${opacity})`);
     ctx.arc(p.position.x, p.position.y, p.radius, 0, Math.PI * 2);
     ctx.fill();
-  });
+    drawn++;
+  }
+  ctx.restore();
+  return drawn;
 }
 
 export function drawExplosionParticles(
   ctx: CanvasRenderingContext2D,
-  particles: Particle[]
-): void {
+  particles: Particle[],
+  view: ViewBounds
+): number {
+  let drawn = 0;
   particles.forEach(p => {
+    if (!isInView(p.position.x, p.position.y, p.radius, view)) return;
+    drawn++;
     ctx.save();
     ctx.globalAlpha = p.life / p.maxLife;
     ctx.fillStyle = p.color;
@@ -35,6 +50,7 @@ export function drawExplosionParticles(
     ctx.fill();
     ctx.restore();
   });
+  return drawn;
 }
 
 export function drawRadioBubbles(

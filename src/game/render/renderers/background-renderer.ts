@@ -1,21 +1,40 @@
 import { Asteroid, BackgroundStar, Nebula, TargetStar } from '../../entities/game-entities';
+import { isInView, ViewBounds } from '../view-bounds';
+import { toOpaqueColor } from '../color-utils';
 
 export function drawBackgroundStars(
   ctx: CanvasRenderingContext2D,
-  stars: BackgroundStar[]
-): void {
+  stars: BackgroundStar[],
+  view: ViewBounds
+): number {
   const now = Date.now();
-  stars.forEach(star => {
+  let drawn = 0;
+  ctx.save();
+  for (let i = 0; i < stars.length; i++) {
+    const star = stars[i];
+    if (!isInView(star.pos.x, star.pos.y, star.radius, view)) continue;
+    // globalAlpha for the twinkle instead of rebuilding an rgba() string per
+    // star per frame (that was ~12k string allocations/sec of pure GC churn).
+    ctx.globalAlpha = star.opacity + Math.sin(now * star.twinkleSpeed) * 0.1;
+    ctx.fillStyle = toOpaqueColor(star.color);
     ctx.beginPath();
-    const opacity = star.opacity + Math.sin(now * star.twinkleSpeed) * 0.1;
-    ctx.fillStyle = star.color.replace(/[\d.]+\)$/g, `${opacity})`);
     ctx.arc(star.pos.x, star.pos.y, star.radius, 0, Math.PI * 2);
     ctx.fill();
-  });
+    drawn++;
+  }
+  ctx.restore();
+  return drawn;
 }
 
-export function drawNebulas(ctx: CanvasRenderingContext2D, nebulas: Nebula[]): void {
+export function drawNebulas(
+  ctx: CanvasRenderingContext2D,
+  nebulas: Nebula[],
+  view: ViewBounds
+): number {
+  let drawn = 0;
   nebulas.forEach(nebula => {
+    if (!isInView(nebula.position.x, nebula.position.y, nebula.radius, view)) return;
+    drawn++;
     const opacity = (nebula.life / nebula.maxLife) * 0.3;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -37,6 +56,7 @@ export function drawNebulas(ctx: CanvasRenderingContext2D, nebulas: Nebula[]): v
     ctx.fill();
     ctx.restore();
   });
+  return drawn;
 }
 
 export function drawTargetStar(
@@ -74,8 +94,15 @@ export function drawTargetStar(
   ctx.restore();
 }
 
-export function drawAsteroids(ctx: CanvasRenderingContext2D, asteroids: Asteroid[]): void {
+export function drawAsteroids(
+  ctx: CanvasRenderingContext2D,
+  asteroids: Asteroid[],
+  view: ViewBounds
+): number {
+  let drawn = 0;
   asteroids.forEach(asteroid => {
+    if (!isInView(asteroid.position.x, asteroid.position.y, asteroid.radius, view)) return;
+    drawn++;
     ctx.save();
     ctx.translate(asteroid.position.x, asteroid.position.y);
     ctx.rotate(asteroid.rotation);
@@ -92,4 +119,5 @@ export function drawAsteroids(ctx: CanvasRenderingContext2D, asteroids: Asteroid
     ctx.stroke();
     ctx.restore();
   });
+  return drawn;
 }
