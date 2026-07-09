@@ -16,6 +16,7 @@ import type { StarChasersEngine } from './star-chasers.engine';
 import { WormholeManager } from '../systems/wormhole-manager';
 import { Canvas2DRenderer, Renderer } from '../render/renderer';
 import { GameSystem } from './game-system';
+import { prefersReducedMotion } from './motion-preference';
 import { scheduleNextStar } from '../systems/target-star-adapter';
 import { AudioLoopCoordinator } from './audio-loop-coordinator';
 import { EventLoopCoordinator } from './event-loop-coordinator';
@@ -115,7 +116,8 @@ export class EngineUpdater {
   }
 
   initGame() {
-    this.createBackgroundStars(200);
+    // Thin the starfield under reduced-motion (also less to draw).
+    this.createBackgroundStars(prefersReducedMotion() ? 90 : 200);
     this.createShips();
     this.engine.focusedShipId = this.engine.ships[0]?.id ?? 0;
     this.engine.followShipId = null;
@@ -124,7 +126,12 @@ export class EngineUpdater {
   }
 
   createBackgroundStars(count: number) {
-    this.engine.backgroundStars = CanvasManager.createBackgroundStars(count, this.engine.worldWidth, this.engine.worldHeight);
+    this.engine.backgroundStars = CanvasManager.createBackgroundStars(
+      count,
+      this.engine.worldWidth,
+      this.engine.worldHeight,
+      prefersReducedMotion()
+    );
   }
 
   createShips() {

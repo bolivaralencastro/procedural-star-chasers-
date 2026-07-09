@@ -125,18 +125,24 @@ por frame — não há layout thrashing a eliminar. `transform` no minimapa dari
 ganho marginal e a conversão de posição `left/top %` → `translate` relativa ao
 pai é awkward; não paga agora.
 
-### P4 — Modo ambiente (bateria/idle, ~2–3h)
+### P4 — Modo ambiente (bateria/idle) ✅ CONCLUÍDA (2026-07-09)
 
-- [ ] **4.1 Idle a 30 fps**: sem input (mouse/tecla/touch) por 10 s, renderizar
-      frame sim frame não (updates seguem a 60 Hz — física idêntica, só o draw
-      é pulado). Qualquer interação volta a 60 imediatamente. É um toy
-      contemplativo: metade da GPU/bateria, invisível a olho.
-- [ ] **4.2 Tab oculta**: rAF já pausa; auditar que timers de evento
-      (`Date.now()`-based em spawns/cooldowns) não "explodem" eventos
-      acumulados ao voltar — o clamp de 250 ms no loop já protege os ticks,
-      conferir os agendamentos absolutos (`nextStarSpawnTime` etc.).
-- [ ] **4.3 `prefers-reduced-motion`**: reduzir densidade de partículas e
-      twinkle — acessibilidade de graça.
+- [x] **4.3 `prefers-reduced-motion`** (`core/motion-preference.ts`): estrelas
+      de 200 → 90 e twinkle congelado (`twinkleSpeed=0`). Verificado no browser
+      forçando o media query: total de entidades 234 → 122.
+- [x] **4.2 Tab oculta / retorno**: auditado — sem fast-forward. O clamp de
+      250 ms + cap de 5 ticks/frame no loop limitam os updates ao voltar; os
+      spawns por `Date.now()` (`nextStarSpawnTime`, lifetime) são
+      auto-limitados (no máx. 1 estrela por vez, sem rajada). Sem mudança.
+
+**4.1 Idle a 30 fps — REJEITADO (decisão de produto).** A ideia padrão
+("sem input por 10 s → 30 fps") está **errada para este toy**: numa peça de
+contemplação o usuário interage *menos* justamente quando está mais engajado
+(só observando). Throttlar por ociosidade de input degradaria a experiência no
+exato momento de maior fruição. A economia de bateria real — quando a aba está
+oculta — **já é gratuita**: o browser pausa o `requestAnimationFrame`
+automaticamente. Throttle por blur/foco tem o mesmo defeito (o toy pode estar
+sendo observado numa janela em segundo plano), então também foi descartado.
 
 ### P5 — Só se precisar (critério de decisão, não fazer agora)
 

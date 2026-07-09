@@ -39,14 +39,20 @@ export class CanvasManager {
     };
   }
 
-  static createBackgroundStars(count: number, worldWidth: number, worldHeight: number): BackgroundStar[] {
+  static createBackgroundStars(
+    count: number,
+    worldWidth: number,
+    worldHeight: number,
+    reducedMotion = false
+  ): BackgroundStar[] {
     const stars: BackgroundStar[] = [];
     for (let i = 0; i < count; i++) {
       stars.push({
         pos: new Vector2D(Math.random() * worldWidth, Math.random() * worldHeight),
         radius: Math.random() * 1.5 + 0.5,
         opacity: Math.random() * 0.7 + 0.1,
-        twinkleSpeed: Math.random() * 0.02,
+        // twinkleSpeed 0 => sin(t*0)=0 => static opacity, no shimmer
+        twinkleSpeed: reducedMotion ? 0 : Math.random() * 0.02,
         color:
           Math.random() > 0.9
             ? Math.random() > 0.5
