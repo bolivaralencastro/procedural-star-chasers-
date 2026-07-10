@@ -228,14 +228,25 @@ export class EngineUpdater {
   private static readonly DIRECTOR_IDLE_MS = 12000;
   private static readonly DIRECTOR_LERP = 0.05;
 
+  /** How close (in CSS px) the cursor must get to a viewport edge to start panning. */
+  private static readonly EDGE_PAN_MARGIN = 48;
+  /** Pan speed (world units/frame) at the very edge; matches the arrow-key step. */
+  private static readonly EDGE_PAN_MAX_SPEED = 22;
+
   updateCamera(forceSnap = false) {
     const followedShip = this.engine.getFollowedShip();
     if (!followedShip) {
+      const edgePan = this.computeEdgePan();
+      // Nudging the cursor to an edge counts as navigating: keep the auto-director
+      // from taking over while the visitor is steering the free camera.
+      if (edgePan.x !== 0 || edgePan.y !== 0) {
+        this.engine.noteInteraction();
+      }
       if (this.shouldAutoDirect()) {
         this.updateDirectorCamera();
       } else {
         this.engine.directorActive = false;
-        this.updateFreeCamera();
+        this.updateFreeCamera(edgePan);
       }
       return;
     }
@@ -344,7 +355,7 @@ export class EngineUpdater {
     return ships.reduce((best, s) => (s.velocity.magnitude() > best.velocity.magnitude() ? s : best));
   }
 
-  private updateFreeCamera() {
+  private updateFreeCamera(edgePan: { x: number; y: number } = { x: 0, y: 0 }) {
     const step = 22;
     if (this.engine.cameraControlKeys.has('up')) {
       this.engine.cameraPosition.y -= step;
@@ -359,10 +370,63 @@ export class EngineUpdater {
       this.engine.cameraPosition.x += step;
     }
 
+    this.engine.cameraPosition.x += edgePan.x;
+    this.engine.cameraPosition.y += edgePan.y;
+
     const maxX = Math.max(0, this.engine.worldWidth - this.engine.viewportWidth);
     const maxY = Math.max(0, this.engine.worldHeight - this.engine.viewportHeight);
     this.engine.cameraPosition.x = Math.max(0, Math.min(maxX, this.engine.cameraPosition.x));
     this.engine.cameraPosition.y = Math.max(0, Math.min(maxY, this.engine.cameraPosition.y));
+  }
+
+  /**
+   * Edge panning for the free camera: while the cursor rests near a viewport
+   * edge, drift the map that way — the closer to the edge, the faster (up to
+   * EDGE_PAN_MAX_SPEED). Desktop only, and never while piloting a ship or when
+   * input is locked (e.g. the About dialog is open). Returns per-frame deltas in
+   * world units; { x: 0, y: 0 } when the cursor is off-canvas or away from edges.
+   */
+  private computeEdgePan(): { x: number; y: number } {
+    if (
+      this.engine.isMobile() ||
+      this.engine.controlledShipId !== null ||
+      this.engine.inputDisabled()
+    ) {
+      return { x: 0, y: 0 };
+    }
+
+    const scale = this.engine.renderScale;
+    if (scale <= 0) {
+      return { x: 0, y: 0 };
+    }
+    // Canvas size in the same CSS-pixel space as mouse.screenPos.
+    const cssWidth = this.engine.viewportWidth * scale;
+    const cssHeight = this.engine.viewportHeight * scale;
+    const { x, y } = this.engine.mouse.screenPos;
+
+    // Only when the pointer is actually within the canvas (screenPos starts at
+    // (-100, -100) before the first mousemove).
+    if (x < 0 || y < 0 || x > cssWidth || y > cssHeight) {
+      return { x: 0, y: 0 };
+    }
+
+    const margin = EngineUpdater.EDGE_PAN_MARGIN;
+    const maxSpeed = EngineUpdater.EDGE_PAN_MAX_SPEED;
+    let dx = 0;
+    let dy = 0;
+
+    if (x < margin) {
+      dx = -((margin - x) / margin) * maxSpeed;
+    } else if (x > cssWidth - margin) {
+      dx = ((x - (cssWidth - margin)) / margin) * maxSpeed;
+    }
+    if (y < margin) {
+      dy = -((margin - y) / margin) * maxSpeed;
+    } else if (y > cssHeight - margin) {
+      dy = ((y - (cssHeight - margin)) / margin) * maxSpeed;
+    }
+
+    return { x: dx, y: dy };
   }
 
   createStarExplosion(position: Vector2D, count = GAME_CONSTANTS.STAR_EXPLOSION_PARTICLE_COUNT) {

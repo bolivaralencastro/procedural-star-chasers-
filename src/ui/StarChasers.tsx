@@ -1,4 +1,4 @@
-import { For, Show, onCleanup, onMount, type Accessor } from 'solid-js';
+import { For, Show, createSignal, onCleanup, onMount, type Accessor } from 'solid-js';
 import { StarChasersEngine } from '../game/core/star-chasers.engine';
 import { AudioService } from '../game/audio/audio.service';
 import { ScreenWakeLockService } from '../game/services/screen-wake-lock.service';
@@ -41,6 +41,9 @@ export function StarChasers(props: StarChasersProps) {
     onToggleFullscreen: () => props.onToggleFullscreenRequest(),
     onOpenAbout: () => props.onOpenAboutRequest(),
   });
+
+  // The Navigator panel (minimap) can be hidden, just like the diário de bordo.
+  const [navigatorOpen, setNavigatorOpen] = createSignal(true);
 
   const logbookRevision = fromGameSignal(LogbookService.shared.revision);
   const patronColor = () => (logbookRevision(), LogbookService.shared.patronShipColor);
@@ -119,9 +122,24 @@ export function StarChasers(props: StarChasersProps) {
     const onTouchStart = (e: TouchEvent) => engine.handleTouchStart(e);
     const onPointerEnd = () => engine.handlePointerEnd();
 
+    // 'N' toggles the Navigator panel, unless the user is typing (e.g. the signature field).
+    const onToggleNavigator = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'n') return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setNavigatorOpen(open => !open);
+    };
+
     window.addEventListener('resize', onResize);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onToggleNavigator);
     document.addEventListener('keyup', onKeyUp);
     document.addEventListener('touchmove', onTouchMove);
     document.addEventListener('mousedown', onMouseDown);
@@ -133,6 +151,7 @@ export function StarChasers(props: StarChasersProps) {
       window.removeEventListener('resize', onResize);
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', onToggleNavigator);
       document.removeEventListener('keyup', onKeyUp);
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('mousedown', onMouseDown);
@@ -235,12 +254,35 @@ export function StarChasers(props: StarChasersProps) {
         </div>
       </Show>
 
-      <Show when={!isMobile()}>
+      {/* Navegador escondido: botão compacto para reabrir */}
+      <Show when={!isMobile() && !navigatorOpen()}>
+        <button
+          type="button"
+          onClick={() => setNavigatorOpen(true)}
+          class="absolute right-4 top-4 z-40 pointer-events-auto rounded-full border border-white/10 bg-black/55 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-gray-300 shadow-xl backdrop-blur-md hover:bg-white/10"
+          title="Navegador"
+        >
+          Navegador (N)
+        </button>
+      </Show>
+
+      <Show when={!isMobile() && navigatorOpen()}>
         <div class="absolute right-4 top-4 z-40 w-56 pointer-events-auto">
           <div class="rounded-2xl border border-white/10 bg-black/65 p-3 text-[11px] text-gray-200 shadow-2xl backdrop-blur-md">
             <div class="flex items-center justify-between">
               <div>
-                <div class="uppercase tracking-[0.2em] text-gray-500">Navigator</div>
+                <div class="flex items-center gap-2">
+                  <span class="uppercase tracking-[0.2em] text-gray-500">Navigator</span>
+                  <button
+                    type="button"
+                    onClick={() => setNavigatorOpen(false)}
+                    class="rounded-full border border-white/10 px-1.5 leading-none text-[10px] text-gray-400 hover:bg-white/10 hover:text-gray-200"
+                    title="Esconder navegador (N)"
+                    aria-label="Esconder navegador"
+                  >
+                    –
+                  </button>
+                </div>
                 <div class="mt-1 text-xs text-gray-300">
                   <Show
                     when={followShipId() !== null}
@@ -326,7 +368,9 @@ export function StarChasers(props: StarChasersProps) {
               <span>Click map to jump</span>
               <span>Tab / 1 2 3 / 0</span>
             </div>
-            <div class="mt-1 text-[10px] text-gray-500">Arrow keys pan when no ship is selected.</div>
+            <div class="mt-1 text-[10px] text-gray-500">
+              Arrow keys — or the screen edges — pan when no ship is selected.
+            </div>
           </div>
         </div>
       </Show>
