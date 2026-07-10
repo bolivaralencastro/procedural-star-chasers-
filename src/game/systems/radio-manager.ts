@@ -67,6 +67,9 @@ export class RadioManager {
     }
 
     const bubbleLife = Math.round(radioService.getMessageDuration() / 16.67);
+    // One bubble per ship: a new line replaces this ship's previous bubble
+    // instead of stacking on top of it.
+    RadioManager.removeBubblesForShip(radioBubbles, ship.id);
     radioBubbles.push({
       shipId: ship.id,
       textLines: wrapTextFn(line, 240),
@@ -83,8 +86,12 @@ export class RadioManager {
     
     if (isStarCapture) {
       newStarCaptureLock = now + radioService.getMessageDuration();
-      // Filter bubbles to only keep star_capture ones
+      // Clear other chatter so the celebration bubble stands alone, but keep any
+      // "visitor" greeting — it's a one-shot moment that shouldn't be wiped by a
+      // capture happening to land right after it.
+      const preservedVisitor = radioBubbles.filter(b => b.context === 'visitor');
       radioBubbles.length = 0;
+      radioBubbles.push(...preservedVisitor);
       radioBubbles.push({
         shipId: ship.id,
         textLines: wrapTextFn(line, 240),
@@ -102,6 +109,15 @@ export class RadioManager {
       newStarCaptureLock,
       newShipDelay
     };
+  }
+
+  /** Removes any existing speech bubbles belonging to a ship (one bubble per ship). */
+  static removeBubblesForShip(radioBubbles: RadioBubble[], shipId: number): void {
+    for (let i = radioBubbles.length - 1; i >= 0; i--) {
+      if (radioBubbles[i].shipId === shipId) {
+        radioBubbles.splice(i, 1);
+      }
+    }
   }
 
   /**
@@ -133,7 +149,8 @@ export class RadioManager {
     distance: number,
     combinedRadius: number,
     proximityCooldowns: Map<string, number>,
-    enqueueFn: (ship: Ship, context: RadioContext) => boolean
+    enqueueFn: (ship: Ship, context: RadioContext) => boolean,
+    context: RadioContext = 'proximity'
   ): void {
     const proximityRadius = combinedRadius + 80;
     if (distance > proximityRadius) return;
@@ -144,7 +161,7 @@ export class RadioManager {
     if (now < availableAt) return;
 
     const speaker = Math.random() > 0.5 ? shipA : shipB;
-    const emitted = enqueueFn(speaker, 'proximity');
+    const emitted = enqueueFn(speaker, context);
     if (emitted) {
       proximityCooldowns.set(pairKey, now + 8000 + Math.random() * 7000);
     }

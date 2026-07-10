@@ -151,4 +151,26 @@ export const GREEN_LINES: Record<RadioContext, string[]> = {
     'Perseguição coordenada!',
     'Vamos alcançá-la juntos!'
   ],
+  visitor: [
+    'Oi! Que bom ter companhia por aqui.',
+    'Vou te acompanhar de longe, com carinho.',
+    'Sua presença deixa o espaço mais aconchegante.',
+    'Pode ficar à vontade, cuidamos do resto.',
+    'Que visita agradável. Fica um pouquinho?',
+    'Estou de olho em você, do jeitinho gentil.'
+  ],
+  friendly_banter: [
+    'Que bom te ver por perto, amiga. Voamos juntas?',
+    'Nossa amizade floresce a cada volta.',
+    'Obrigada por me resgatar aquele dia, não esqueço.',
+    'Formação suave, do jeitinho que a gente gosta.',
+    'Contigo por perto o espaço fica mais gentil.'
+  ],
+  rivalry: [
+    'Prefiro manter distância de você, com licença.',
+    'Ainda sinto aquele encontrão, viu?',
+    'Vamos evitar atrito, cada uma no seu canto.',
+    'Não vou brigar, mas também não te sigo.',
+    'Respeito o espaço, só não conte comigo agora.'
+  ],
 };

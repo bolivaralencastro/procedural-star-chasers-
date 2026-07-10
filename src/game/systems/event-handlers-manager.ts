@@ -21,8 +21,10 @@ export class EventHandlersManager {
     onFirstInteraction: () => void,
   ): boolean {
     const rect = canvas.getBoundingClientRect();
-    mouse.pos.x = cameraPosition.x + (event.clientX - rect.left) / renderScale;
-    mouse.pos.y = cameraPosition.y + (event.clientY - rect.top) / renderScale;
+    mouse.screenPos.x = event.clientX - rect.left;
+    mouse.screenPos.y = event.clientY - rect.top;
+    mouse.pos.x = cameraPosition.x + mouse.screenPos.x / renderScale;
+    mouse.pos.y = cameraPosition.y + mouse.screenPos.y / renderScale;
 
     if (!firstInteractionHandled) {
       onFirstInteraction();
@@ -49,6 +51,8 @@ export class EventHandlersManager {
     const touch = event.touches[0];
     const touchX = touch.clientX - rect.left;
     const touchY = touch.clientY - rect.top;
+    mouse.screenPos.x = touchX;
+    mouse.screenPos.y = touchY;
     mouse.pos.x = cameraPosition.x + touchX / renderScale;
     mouse.pos.y = cameraPosition.y + touchY / renderScale;
 
@@ -154,6 +158,8 @@ export class EventHandlersManager {
     const touch = event.touches[0];
     const touchX = touch.clientX - rect.left;
     const touchY = touch.clientY - rect.top;
+    params.mouse.screenPos.x = touchX;
+    params.mouse.screenPos.y = touchY;
     params.mouse.pos.x = params.cameraPosition.x + touchX / params.renderScale;
     params.mouse.pos.y = params.cameraPosition.y + touchY / params.renderScale;
 

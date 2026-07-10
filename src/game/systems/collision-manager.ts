@@ -12,7 +12,8 @@ export class CollisionManager {
    */
   static updateShipCollisions(
     ships: Ship[],
-    onProximityChatter?: (shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) => void
+    onProximityChatter?: (shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) => void,
+    onCollision?: (shipA: Ship, shipB: Ship) => void
   ): void {
     for (let i = 0; i < ships.length; i++) {
       for (let j = i + 1; j < ships.length; j++) {
@@ -39,6 +40,7 @@ export class CollisionManager {
 
         if (dist < combinedRadius) {
           this.resolveCollision(shipA, shipB, dist, combinedRadius, radiusA, radiusB);
+          onCollision?.(shipA, shipB);
         }
       }
     }

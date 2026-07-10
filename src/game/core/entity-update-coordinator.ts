@@ -24,7 +24,9 @@ interface EntityUpdateDependencies {
   normalizeAngle: (angle: number) => number;
   lerpAngle: (a: number, b: number, t: number) => number;
   maybeTriggerProximityChatter: (shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) => void;
+  onShipCollision: (shipA: Ship, shipB: Ship) => void;
   switchPersonality: (ship: Ship) => void;
+  updateIntent: (ship: Ship, deltaTime: number) => void;
   applyPersonalityBehaviors: (ship: Ship) => void;
   performBlink: (ship: Ship) => void;
   performCelebration: (ship: Ship) => void;
@@ -125,6 +127,7 @@ export class EntityUpdateCoordinator {
       nebulas: this.engine.nebulas,
       mouse: this.engine.mouse,
       mouseInteractionEnabled: this.engine.mouseInteractionEnabled(),
+      isMobile: this.engine.isMobile(),
       gameMode: this.engine.gameMode,
       worldWidth: this.engine.worldWidth,
       worldHeight: this.engine.worldHeight,
@@ -136,6 +139,7 @@ export class EntityUpdateCoordinator {
 
     const callbacks = {
       switchPersonality: this.dependencies.switchPersonality,
+      updateIntent: this.dependencies.updateIntent,
       applyPersonalityBehaviors: this.dependencies.applyPersonalityBehaviors,
       performBlink: this.dependencies.performBlink,
       performCelebration: this.dependencies.performCelebration,
@@ -164,7 +168,11 @@ export class EntityUpdateCoordinator {
   }
 
   updateShipCollisions(): void {
-    CollisionManager.updateShipCollisions(this.engine.ships, this.dependencies.maybeTriggerProximityChatter);
+    CollisionManager.updateShipCollisions(
+      this.engine.ships,
+      this.dependencies.maybeTriggerProximityChatter,
+      this.dependencies.onShipCollision
+    );
   }
 
   updateProjectileAsteroidCollisions(): void {
@@ -186,6 +194,7 @@ export class EntityUpdateCoordinator {
             if (ownerShip) {
               ownerShip.asteroidsDestroyed++;
             }
+            this.engine.deps.logbook.recordAsteroidDestroyed();
             break;
           }
         }

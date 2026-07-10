@@ -2,6 +2,7 @@ import { signal } from './reactive';
 import { AudioService } from '../audio/audio.service';
 import { ScreenWakeLockService } from '../services/screen-wake-lock.service';
 import { RadioChatterService, RadioContext } from '../services/radio-chatter.service';
+import { LogbookService } from '../services/logbook-store';
 import { Vector2D } from '../entities/vector2d';
 import { ConstellationService } from '../services/constellation.service';
 import { Ship } from '../entities/ship';
@@ -27,6 +28,7 @@ export interface StarChasersEngineDeps {
   wakeLockService: ScreenWakeLockService;
   radioService: RadioChatterService;
   constellationService: ConstellationService;
+  logbook: LogbookService;
   /** Asks the host UI to re-render after engine state changes. */
   notifyUi: () => void;
   onToggleFullscreen: () => void;
@@ -72,6 +74,7 @@ export class StarChasersEngine {
 
   public mouse: MouseState = {
     pos: new Vector2D(-100, -100),
+    screenPos: new Vector2D(-100, -100),
     isDown: false,
     orbitRadius: GAME_CONSTANTS.MOUSE_ORBIT_RADIUS,
   };
@@ -107,6 +110,18 @@ export class StarChasersEngine {
   public focusedShipId = 0;
   public cameraControlKeys = new Set<'up' | 'down' | 'left' | 'right'>();
 
+  // Idle auto-director: after a spell without input, the free camera gently
+  // drifts to follow the action so the toy is worth watching passively.
+  public lastInteractionAt = Date.now();
+  public directorActive = false;
+  public directorTargetId: number | null = null;
+  public directorRetargetAt = 0;
+
+  /** Marks fresh user input; suspends the auto-director. */
+  noteInteraction() {
+    this.lastInteractionAt = Date.now();
+  }
+
   public readonly updater = new EngineUpdater(this);
   private readonly interactions = new EngineInteractions(this);
 
@@ -136,6 +151,7 @@ export class StarChasersEngine {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
     }
+    this.updater.dispose();
     this.interactions.cleanup();
     this.deps.audioService.updateGameSounds(false, false, false, undefined);
   }

@@ -23,6 +23,7 @@ export class ShipUpdateManager {
       nebulas: Nebula[];
       mouse: MouseState;
       mouseInteractionEnabled: boolean;
+      isMobile: boolean;
       gameMode: 'normal' | 'asteroid_event';
       worldWidth: number;
       worldHeight: number;
@@ -33,6 +34,7 @@ export class ShipUpdateManager {
     },
     callbacks: {
       switchPersonality: (ship: Ship) => void;
+      updateIntent: (ship: Ship, deltaTime: number) => void;
       applyPersonalityBehaviors: (ship: Ship) => void;
       performBlink: (ship: Ship) => void;
       performCelebration: (ship: Ship) => void;
@@ -54,11 +56,8 @@ export class ShipUpdateManager {
     const deltaTime = 16.67;
     const TAIL_LENGTH = GAME_CONSTANTS.TAIL_LENGTH;
 
-    // Personality timer
-    ship.personalityTimer -= deltaTime;
-    if (ship.personalityTimer <= 0 && ship.state === 'idle') {
-      callbacks.switchPersonality(ship);
-    }
+    // Intent engine: evolve drives and re-pick an intent on its own cadence.
+    callbacks.updateIntent(ship, deltaTime);
 
     // Z-axis movement (depth effect)
     ship.zMoveTimer -= deltaTime;
@@ -130,6 +129,15 @@ export class ShipUpdateManager {
 
     // Mouse interaction (attracting/repelling when not in special states)
     this.handleMouseInteraction(ship, context);
+
+    // Ambient, personality-flavoured reaction to the visitor's cursor, plus
+    // sparse "visitor" chatter when a ship notices it (cooldowns gate the rate).
+    if (ship.state === 'idle' || ship.state === 'hunting' || ship.state === 'launched') {
+      const noticing = ShipBehaviorManager.applyCursorPerception(ship, context.mouse, context.isMobile);
+      if (noticing && Math.random() < 0.004) {
+        callbacks.enqueueRadioMessage(ship, 'visitor');
+      }
+    }
 
     // Apply velocity and acceleration (for non-orbiting, non-celebrating, non-paralyzed ships)
     if (ship.state !== 'orbiting' && ship.state !== 'celebrating' && ship.state !== 'paralyzed') {
@@ -356,6 +364,7 @@ export class ShipUpdateManager {
     switch (ship.state) {
       case 'idle':
         callbacks.applyPersonalityBehaviors(ship);
+        ShipBehaviorManager.performIdleRitual(ship, context.nebulas);
         break;
       case 'hunting':
         if (context.targetStar.exists && !context.targetStar.isDespawning) {

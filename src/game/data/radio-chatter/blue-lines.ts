@@ -148,4 +148,26 @@ export const BLUE_LINES: Record<RadioContext, string[]> = {
     'Seguindo alvo com precisão!',
     'Rota de interceptação confirmada!'
   ],
+  visitor: [
+    'Presença externa detectada. Analisando intenções.',
+    'Mantenho distância de segurança do cursor.',
+    'Observador registrado no meu diário de bordo.',
+    'Interessante. Seus movimentos são imprevisíveis.',
+    'Calculando: você é curioso ou apenas de passagem?',
+    'Registrei sua trajetória. Prossiga, visitante.'
+  ],
+  friendly_banter: [
+    'Aliança confirmada. Voar em formação é eficiente.',
+    'Nossa confiança mútua subiu para níveis ótimos.',
+    'Coordenadas sincronizadas. Obrigado pela cobertura.',
+    'Parceria estável detectada. Mantenhamos a formação.',
+    'Sua trajetória e a minha convergem bem, aliada.'
+  ],
+  rivalry: [
+    'Divergência de interesses registrada. Recalculando distância.',
+    'Você compromete minha eficiência. Afaste-se.',
+    'Índice de atrito elevado. Prefiro rota separada.',
+    'Aquele impacto não foi esquecido, apenas arquivado.',
+    'Probabilidade de cooperação: baixa. Seguindo sozinho.'
+  ],
 };

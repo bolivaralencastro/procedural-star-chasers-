@@ -4,6 +4,9 @@ import { AudioService } from '../game/audio/audio.service';
 import { ScreenWakeLockService } from '../game/services/screen-wake-lock.service';
 import { RadioChatterService } from '../game/services/radio-chatter.service';
 import { ConstellationService } from '../game/services/constellation.service';
+import { LogbookService } from '../game/services/logbook-store';
+import { INTENT_LABELS } from '../game/systems/intent-manager';
+import type { Ship } from '../game/entities/ship';
 import { createFrameTick, fromGameSignal } from './game-bridge';
 
 export interface StarChasersApi {
@@ -33,10 +36,14 @@ export function StarChasers(props: StarChasersProps) {
     wakeLockService: ScreenWakeLockService.shared,
     radioService: RadioChatterService.shared,
     constellationService: ConstellationService.shared,
+    logbook: LogbookService.shared,
     notifyUi: bump,
     onToggleFullscreen: () => props.onToggleFullscreenRequest(),
     onOpenAbout: () => props.onOpenAboutRequest(),
   });
+
+  const logbookRevision = fromGameSignal(LogbookService.shared.revision);
+  const patronColor = () => (logbookRevision(), LogbookService.shared.patronShipColor);
 
   const isMobile = fromGameSignal(engine.isMobile);
   const mobileMenuVisible = fromGameSignal(engine.mobileMenuVisible);
@@ -65,12 +72,14 @@ export function StarChasers(props: StarChasersProps) {
   const focusedShipId = () => (tick(), engine.focusedShipId);
   const followShipId = () => (tick(), engine.followShipId);
   const followedShipCodename = () => (tick(), engine.getFollowedShip()?.codename ?? 'Ship');
+  const directorActive = () => (tick(), engine.directorActive);
 
   const onMinimapPointer = (event: MouseEvent) => {
     const target = event.currentTarget as HTMLElement | null;
     if (!target || engine.worldWidth === 0 || engine.worldHeight === 0) {
       return;
     }
+    engine.noteInteraction();
 
     const rect = target.getBoundingClientRect();
     const ratioX = (event.clientX - rect.left) / rect.width;
@@ -136,6 +145,26 @@ export function StarChasers(props: StarChasersProps) {
 
   const menuEntryClass = 'py-2 px-4 cursor-pointer hover:bg-white/10 transition-colors border-t border-white/10';
 
+  const intentLabel = (ship: Ship): string => {
+    switch (ship.state) {
+      case 'hunting':
+      case 'chasing':
+        return 'Caçando estrela';
+      case 'celebrating':
+        return 'Comemorando';
+      case 'paralyzed':
+        return 'Paralisada';
+      case 'orbiting':
+        return 'Em órbita';
+      case 'controlled':
+        return 'Pilotada';
+      case 'launched':
+        return 'Lançada';
+      default:
+        return INTENT_LABELS[ship.personality];
+    }
+  };
+
   const ShipStats = () => (
     <div class="px-4 py-3 border-t border-white/10">
       <h4 class="text-xs text-gray-400 mb-2 uppercase tracking-wider">Ship Stats</h4>
@@ -145,7 +174,15 @@ export function StarChasers(props: StarChasersProps) {
             <div class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">
                 <span class="w-3 h-3 rounded-full" style={{ 'background-color': ship.hexColor }}></span>
-                <span class="font-semibold">{ship.codename}</span>
+                <div class="flex flex-col">
+                  <span class="font-semibold">
+                    {ship.codename}
+                    <Show when={ship.color === patronColor()}>
+                      <span class="ml-1 text-amber-300" title="Apadrinhada">★</span>
+                    </Show>
+                  </span>
+                  <span class="text-[10px] text-gray-500">{intentLabel(ship)}</span>
+                </div>
               </div>
               <div class="flex items-center gap-3 text-gray-300">
                 <span>★ {ship.score}</span>
@@ -205,7 +242,14 @@ export function StarChasers(props: StarChasersProps) {
               <div>
                 <div class="uppercase tracking-[0.2em] text-gray-500">Navigator</div>
                 <div class="mt-1 text-xs text-gray-300">
-                  <Show when={followShipId() !== null} fallback="Free camera">
+                  <Show
+                    when={followShipId() !== null}
+                    fallback={
+                      <Show when={directorActive()} fallback="Câmera livre">
+                        <span class="text-cyan-300">● Diretor automático</span>
+                      </Show>
+                    }
+                  >
                     Following {followedShipCodename()}
                   </Show>
                 </div>
@@ -233,6 +277,8 @@ export function StarChasers(props: StarChasersProps) {
                       left: `${(ship.position.x / worldWidth()) * 100}%`,
                       top: `${(ship.position.y / worldHeight()) * 100}%`,
                       'background-color': ship.hexColor,
+                      'box-shadow':
+                        ship.color === patronColor() ? '0 0 0 2px #fbbf24, 0 0 8px #fbbf24' : undefined,
                     }}
                     classList={{
                       'ring-2': ship.id === focusedShipId(),

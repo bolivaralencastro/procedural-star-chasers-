@@ -13,4 +13,7 @@ export type RadioContext =
   | 'wormhole_shuffle'
   | 'supernova'
   | 'fire'
-  | 'chasing';
+  | 'chasing'
+  | 'visitor'
+  | 'friendly_banter'
+  | 'rivalry';

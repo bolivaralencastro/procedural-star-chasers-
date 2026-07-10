@@ -11,6 +11,7 @@ import { ParticleEffectsManager } from '../systems/particle-effects-manager';
 import { ProjectileManager } from '../systems/projectile-manager';
 import { RadioManager } from '../systems/radio-manager';
 import { ShipBehaviorManager } from '../systems/ship-behavior-manager';
+import { RelationshipManager } from '../systems/relationship-manager';
 import { StarEventManager } from '../systems/star-event-manager';
 import type { StarChasersEngine } from './star-chasers.engine';
 import { WormholeManager } from '../systems/wormhole-manager';
@@ -45,7 +46,9 @@ export class EngineUpdater {
       normalizeAngle: this.normalizeAngle.bind(this),
       lerpAngle: this.lerpAngle.bind(this),
       maybeTriggerProximityChatter: this.maybeTriggerProximityChatter.bind(this),
+      onShipCollision: (a, b) => this.adjustAffinity(a.id, b.id, -RelationshipManager.COLLISION_PENALTY),
       switchPersonality: this.switchPersonality.bind(this),
+      updateIntent: this.updateIntent.bind(this),
       applyPersonalityBehaviors: this.applyPersonalityBehaviors.bind(this),
       performBlink: this.performBlink.bind(this),
       performCelebration: this.performCelebration.bind(this),
@@ -78,6 +81,7 @@ export class EngineUpdater {
     { name: 'ship-collisions', update: () => this.updateShipCollisions() },
     { name: 'star-capture', update: () => this.checkStarCapture() },
     { name: 'camera', update: () => this.updateCamera() },
+    { name: 'cursor-reproject', update: () => this.reprojectCursor() },
   ];
 
   /** Swappable rendering backend (Canvas 2D today, PixiJS-ready seam). */
@@ -115,6 +119,8 @@ export class EngineUpdater {
     this.updateCamera(true);
   }
 
+  private welcomeTimer?: ReturnType<typeof setTimeout>;
+
   initGame() {
     // Thin the starfield under reduced-motion (also less to draw).
     this.createBackgroundStars(prefersReducedMotion() ? 90 : 200);
@@ -123,6 +129,87 @@ export class EngineUpdater {
     this.engine.followShipId = null;
     this.engine.moveCameraTo(this.engine.worldWidth / 2, this.engine.worldHeight / 2);
     scheduleNextStar(this.engine);
+    this.maybeGreetReturningVisitor();
+  }
+
+  /** Clears any pending timers owned by the updater (called on engine destroy). */
+  dispose() {
+    if (this.welcomeTimer) {
+      clearTimeout(this.welcomeTimer);
+      this.welcomeTimer = undefined;
+    }
+  }
+
+  /**
+   * If the logbook says this browser has visited before, have a ship greet the
+   * returning visitor a couple of seconds after load — using their signature if
+   * they left one. This is the emotional payoff of the continuity layer.
+   */
+  private maybeGreetReturningVisitor() {
+    if (!this.engine.deps.logbook.isReturning) {
+      return;
+    }
+    this.welcomeTimer = setTimeout(() => this.triggerWelcomeBack(), 2600);
+  }
+
+  private triggerWelcomeBack() {
+    const ship = this.pickGreetingShip();
+    if (!ship) {
+      return;
+    }
+    // Follow the greeter (not just recentre once) so its speech bubble stays
+    // in frame for the whole greeting instead of drifting off as the ship moves.
+    this.engine.followShip(ship.id);
+    this.updateCamera(true);
+    const text = this.buildWelcomeBackLine(ship);
+    const duration = this.engine.deps.radioService.getMessageDuration();
+    const life = Math.round(duration / 16.67);
+    // Replace any bubble already on the greeter so the greeting stands alone.
+    RadioManager.removeBubblesForShip(this.engine.radioBubbles, ship.id);
+    this.engine.radioBubbles.push({
+      shipId: ship.id,
+      textLines: this.wrapText(text, 240),
+      position: ship.position.clone(),
+      life,
+      maxLife: life,
+      color: ship.hexColor,
+      context: 'visitor',
+    });
+    // Hold other chatter briefly so the greeting stays readable.
+    this.engine.globalChatterCooldownUntil = Date.now() + duration;
+  }
+
+  /** The active ship nearest the current camera centre (least jarring to greet). */
+  private pickGreetingShip(): Ship | null {
+    const active = this.engine.ships.filter(s => s.state !== 'paralyzed');
+    if (active.length === 0) {
+      return null;
+    }
+    const center = new Vector2D(
+      this.engine.cameraPosition.x + this.engine.viewportWidth / 2,
+      this.engine.cameraPosition.y + this.engine.viewportHeight / 2
+    );
+    return active.reduce((best, s) =>
+      Vector2D.distance(s.position, center) < Vector2D.distance(best.position, center) ? s : best
+    );
+  }
+
+  private buildWelcomeBackLine(ship: Ship): string {
+    const logbook = this.engine.deps.logbook;
+    const sig = logbook.signature;
+    const visits = logbook.visitCount;
+    const options = sig
+      ? [
+          `${sig}! Você voltou. Senti falta da plateia.`,
+          `Ó quem chegou: ${sig}. Bem-vindo de volta.`,
+          `${sig}, de volta pra ${visits}ª visita. Anotado no diário.`,
+        ]
+      : [
+          `Você de novo! Já é sua ${visits}ª passagem por aqui.`,
+          `Bem-vindo de volta, visitante. A gente lembra de você.`,
+          `Olha quem voltou pra assistir. Que bom te ver.`,
+        ];
+    return options[Math.floor(Math.random() * options.length)];
   }
 
   createBackgroundStars(count: number) {
@@ -138,12 +225,21 @@ export class EngineUpdater {
     this.engine.ships = GameInitializationManager.createShips(this.engine.worldWidth, this.engine.worldHeight);
   }
 
+  private static readonly DIRECTOR_IDLE_MS = 12000;
+  private static readonly DIRECTOR_LERP = 0.05;
+
   updateCamera(forceSnap = false) {
     const followedShip = this.engine.getFollowedShip();
     if (!followedShip) {
-      this.updateFreeCamera();
+      if (this.shouldAutoDirect()) {
+        this.updateDirectorCamera();
+      } else {
+        this.engine.directorActive = false;
+        this.updateFreeCamera();
+      }
       return;
     }
+    this.engine.directorActive = false;
 
     const targetX = followedShip.position.x - this.engine.viewportWidth / 2;
     const targetY = followedShip.position.y - this.engine.viewportHeight / 2;
@@ -160,6 +256,92 @@ export class EngineUpdater {
 
     this.engine.cameraPosition.x += (clampedTargetX - this.engine.cameraPosition.x) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
     this.engine.cameraPosition.y += (clampedTargetY - this.engine.cameraPosition.y) * GAME_CONSTANTS.CAMERA_FOLLOW_LERP;
+  }
+
+  /**
+   * Keeps the cursor's world position anchored to the physical pointer while
+   * the camera moves (ship follow, lerp, arrow-key pan). Without this, the
+   * orbit point only updates on mousemove and gets dragged along with the
+   * camera. Skipped on mobile: there is no persistent pointer, and the last
+   * touch position must stay where the finger left it.
+   */
+  private reprojectCursor() {
+    if (this.engine.isMobile()) {
+      return;
+    }
+    const mouse = this.engine.mouse;
+    mouse.pos.x = this.engine.cameraPosition.x + mouse.screenPos.x / this.engine.renderScale;
+    mouse.pos.y = this.engine.cameraPosition.y + mouse.screenPos.y / this.engine.renderScale;
+  }
+
+  /** True when the free camera has been idle long enough to take over as director. */
+  private shouldAutoDirect(): boolean {
+    return (
+      this.engine.controlledShipId === null &&
+      this.engine.followShipId === null &&
+      this.engine.cameraControlKeys.size === 0 &&
+      Date.now() - this.engine.lastInteractionAt > EngineUpdater.DIRECTOR_IDLE_MS
+    );
+  }
+
+  /** Gently drifts the free camera toward the most interesting ship. */
+  private updateDirectorCamera(): void {
+    const target = this.pickDirectorTarget();
+    if (!target) {
+      this.engine.directorActive = false;
+      this.updateFreeCamera();
+      return;
+    }
+    this.engine.directorActive = true;
+
+    const maxX = Math.max(0, this.engine.worldWidth - this.engine.viewportWidth);
+    const maxY = Math.max(0, this.engine.worldHeight - this.engine.viewportHeight);
+    const targetX = Math.max(0, Math.min(maxX, target.position.x - this.engine.viewportWidth / 2));
+    const targetY = Math.max(0, Math.min(maxY, target.position.y - this.engine.viewportHeight / 2));
+    this.engine.cameraPosition.x += (targetX - this.engine.cameraPosition.x) * EngineUpdater.DIRECTOR_LERP;
+    this.engine.cameraPosition.y += (targetY - this.engine.cameraPosition.y) * EngineUpdater.DIRECTOR_LERP;
+  }
+
+  /** Holds a director target for a beat before re-choosing, to avoid jitter. */
+  private pickDirectorTarget(): Ship | null {
+    const ships = this.engine.ships;
+    if (ships.length === 0) {
+      return null;
+    }
+    const now = Date.now();
+    const held = ships.find(s => s.id === this.engine.directorTargetId);
+    if (held && now < this.engine.directorRetargetAt) {
+      return held;
+    }
+    const target = this.computeInterestingShip();
+    this.engine.directorTargetId = target?.id ?? null;
+    this.engine.directorRetargetAt = now + 2500;
+    return target;
+  }
+
+  /** The ship "where the action is": near an asteroid, else near the star, else fastest. */
+  private computeInterestingShip(): Ship | null {
+    const ships = this.engine.ships;
+    if (ships.length === 0) {
+      return null;
+    }
+    if (this.engine.gameMode === 'asteroid_event' && this.engine.asteroids.length > 0) {
+      const asteroid = this.engine.asteroids[0];
+      return ships.reduce((best, s) =>
+        Vector2D.distance(s.position, asteroid.position) < Vector2D.distance(best.position, asteroid.position)
+          ? s
+          : best
+      );
+    }
+    if (this.engine.targetStar.exists) {
+      return ships.reduce((best, s) =>
+        Vector2D.distance(s.position, this.engine.targetStar.position) <
+        Vector2D.distance(best.position, this.engine.targetStar.position)
+          ? s
+          : best
+      );
+    }
+    return ships.reduce((best, s) => (s.velocity.magnitude() > best.velocity.magnitude() ? s : best));
   }
 
   private updateFreeCamera() {
@@ -193,6 +375,7 @@ export class EngineUpdater {
 
   createNebula(position: Vector2D) {
     GameStateManager.createNebula(this.engine.nebulas, position);
+    this.bumpWonder(0.35);
   }
 
   updateParticles() {
@@ -232,6 +415,8 @@ export class EngineUpdater {
   }
 
   triggerLaunchChatter(ship: Ship) {
+    // Single choke point for launches (orbit release + pilot-mode release).
+    this.engine.deps.logbook.recordShipLaunched();
     this.enqueueRadioMessage(ship, 'launch');
   }
 
@@ -256,6 +441,8 @@ export class EngineUpdater {
           paralyzedShip.paralyzeTimer = 0;
           this.createStarExplosion(rescueShip.position, 20);
           this.engine.deps.audioService.playSound('rescue');
+          this.engine.deps.logbook.recordRescueWitnessed();
+          this.adjustAffinity(rescueShip.id, paralyzedShip.id, RelationshipManager.RESCUE_BONUS);
           this.enqueueRadioMessage(paralyzedShip, 'rescue');
           break; // This paralyzed ship is rescued, move to next one
         }
@@ -345,11 +532,21 @@ export class EngineUpdater {
     ShipBehaviorManager.switchPersonality(ship, this.engine.worldWidth, this.engine.worldHeight);
   }
 
+  updateIntent(ship: Ship, deltaTime: number) {
+    ShipBehaviorManager.updateIntent(ship, this.engine.ships, this.engine.worldWidth, this.engine.worldHeight, deltaTime);
+  }
+
   applyPersonalityBehaviors(ship: Ship) {
     ShipBehaviorManager.applyPersonalityBehaviors(ship, this.engine.ships, this.engine.worldWidth, this.engine.worldHeight);
   }
 
   captureStar(winner: Ship) {
+    this.engine.deps.logbook.recordStarWitnessed(winner.color);
+    // A capture stokes the losers' rivalry and cools the winner's.
+    this.engine.ships.forEach(s => {
+      s.drives.rivalry =
+        s.id === winner.id ? Math.max(0, s.drives.rivalry - 0.5) : Math.min(1, s.drives.rivalry + 0.4);
+    });
     StarEventManager.captureStar(
       winner,
       this.engine.targetStar,
@@ -369,6 +566,32 @@ export class EngineUpdater {
       },
       this.engine.deps.audioService
     );
+
+    if (this.engine.deps.logbook.patronShipColor === winner.color) {
+      this.triggerPatronCelebration(winner);
+    }
+  }
+
+  /** Extra fanfare + a signed shout-out when the visitor's patron ship scores. */
+  private triggerPatronCelebration(winner: Ship) {
+    this.createStarExplosion(winner.position.clone(), 30);
+    const sig = this.engine.deps.logbook.signature;
+    const options = sig
+      ? [`Essa é pra você, ${sig}!`, `${sig}, mais uma no seu nome!`, `Conta comigo sempre, ${sig}!`]
+      : ['Essa vitória é da nossa torcida!', 'Sinto a força de quem me apadrinhou!', 'Dedico essa ao meu padrinho!'];
+    const text = options[Math.floor(Math.random() * options.length)];
+    const duration = this.engine.deps.radioService.getMessageDuration();
+    const life = Math.round(duration / 16.67);
+    RadioManager.removeBubblesForShip(this.engine.radioBubbles, winner.id);
+    this.engine.radioBubbles.push({
+      shipId: winner.id,
+      textLines: this.wrapText(text, 240),
+      position: winner.position.clone(),
+      life,
+      maxLife: life,
+      color: winner.hexColor,
+      context: 'star_capture',
+    });
   }
 
   enqueueRadioMessage(ship: Ship, context: RadioContext): boolean {
@@ -415,13 +638,22 @@ export class EngineUpdater {
   }
 
   maybeTriggerProximityChatter(shipA: Ship, shipB: Ship, distance: number, combinedRadius: number) {
+    const affinity = this.engine.deps.logbook.getRelationship(shipA.id, shipB.id);
+
+    // Affinity-driven flocking: friends form up, rivals keep apart.
+    const free = (s: Ship) => s.state === 'idle' || s.state === 'hunting' || s.state === 'launched';
+    if (free(shipA) && free(shipB)) {
+      RelationshipManager.applyProximitySteering(shipA, shipB, distance, combinedRadius, affinity);
+    }
+
     RadioManager.maybeTriggerProximityChatter(
       shipA,
       shipB,
       distance,
       combinedRadius,
       this.engine.proximityCooldowns,
-      this.enqueueRadioMessage.bind(this)
+      this.enqueueRadioMessage.bind(this),
+      RelationshipManager.contextForAffinity(affinity)
     );
   }
 
@@ -439,7 +671,22 @@ export class EngineUpdater {
       this.engine.worldWidth,
       this.engine.worldHeight
     );
+    this.engine.deps.logbook.recordWormholeCreated();
+    this.bumpWonder(0.5);
     this.engine.deps.audioService.playSound('warp');
+  }
+
+  /** A novel event in the world raises every ship's curiosity. */
+  private bumpWonder(amount: number) {
+    this.engine.ships.forEach(s => {
+      s.drives.wonder = Math.min(1, s.drives.wonder + amount);
+    });
+  }
+
+  /** Shifts the persisted affinity between two ships by `delta` (clamped). */
+  adjustAffinity(idA: number, idB: number, delta: number) {
+    const current = this.engine.deps.logbook.getRelationship(idA, idB);
+    this.engine.deps.logbook.setRelationship(idA, idB, current + delta);
   }
 
   handleShipAction(ship: Ship) {

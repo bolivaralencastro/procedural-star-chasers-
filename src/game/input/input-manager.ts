@@ -6,6 +6,12 @@ import { GAME_CONSTANTS } from '../core/game-constants';
 
 export interface MouseState {
   pos: Vector2D;
+  /**
+   * Pointer position in canvas-relative CSS pixels. `pos` (world space) is
+   * reprojected from it every tick so the cursor stays under the physical
+   * pointer while the camera moves (follow/pan), RTS-style.
+   */
+  screenPos: Vector2D;
   isDown: boolean;
   orbitRadius: number;
 }

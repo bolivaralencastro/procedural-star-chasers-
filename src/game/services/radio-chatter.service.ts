@@ -34,6 +34,9 @@ export class RadioChatterService {
     supernova: [12000, 18000],
     fire: [5000, 8000],
     chasing: [10000, 15000],
+    visitor: [14000, 22000], // reacting to the cursor/visitor — keep it sparse
+    friendly_banter: [11000, 17000],
+    rivalry: [11000, 17000],
   };
 
   private readonly linePools: LinePools = {

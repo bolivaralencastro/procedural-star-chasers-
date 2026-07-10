@@ -1,4 +1,5 @@
 import { ShipColor, ShipPersonality } from './ship-personas';
+import { ShipDrives } from '../systems/intent-manager';
 import { Vector2D } from './vector2d';
 
 export type ShipState = 'idle' | 'hunting' | 'orbiting' | 'celebrating' | 'launched' | 'paralyzed' | 'controlled' | 'forming' | 'chasing';
@@ -30,10 +31,14 @@ export interface Ship {
   blinkCooldown: number; // Blue
   blinkTimer: number; // Blue
   isBlinking: number; // Blue
-  // Personality Engine
+  // Personality / intent engine
   personality: ShipPersonality;
   personalityTimer: number;
   patrolTarget?: Vector2D;
+  /** Slow-moving drives that bias the next intent choice. */
+  drives: ShipDrives;
+  /** Milliseconds until the next intent re-evaluation. */
+  intentTimer: number;
   // Asteroid Event
   fireCooldown: number;
   paralyzeTimer: number;

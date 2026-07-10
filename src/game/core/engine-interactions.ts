@@ -23,6 +23,7 @@ export class EngineInteractions {
     if (this.engine.isMobile()) {
       return;
     }
+    this.engine.noteInteraction();
     this.firstInteractionHandled = EventHandlersManager.handleMouseMove(
       event,
       this.engine.getCanvas(),
@@ -35,6 +36,7 @@ export class EngineInteractions {
   }
 
   handleKeyDown(event: KeyboardEvent) {
+    this.engine.noteInteraction();
     const key = event.key.toLowerCase();
 
     if (key === 'f') {
@@ -127,6 +129,7 @@ export class EngineInteractions {
   }
 
   handleTouchMove(event: TouchEvent) {
+    this.engine.noteInteraction();
     this.longPressTimer = EventHandlersManager.handleTouchMove(
       event,
       this.engine.getCanvas(),
@@ -146,6 +149,7 @@ export class EngineInteractions {
     if (this.engine.inputDisabled()) {
       return;
     }
+    this.engine.noteInteraction();
 
     const result = EventHandlersManager.handleMouseDown(event, {
       contextMenu: this.engine.contextMenu,
@@ -170,6 +174,7 @@ export class EngineInteractions {
     if (this.engine.inputDisabled()) {
       return;
     }
+    this.engine.noteInteraction();
 
     const result = EventHandlersManager.handleTouchStart(event, {
       canvas: this.engine.getCanvas(),

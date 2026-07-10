@@ -151,4 +151,26 @@ export const RED_LINES: Record<RadioContext, string[]> = {
     'Na cola do alvo!',
     'Não vai escapar!'
   ],
+  visitor: [
+    'Opa, temos plateia! Bora dar show.',
+    'Esse cursor de novo? Cola aqui pra ver velocidade.',
+    'Sentiu a gravidade? É você me puxando, visitante.',
+    'Chega junto, mas não segura minha asa!',
+    'Adoro quando alguém aparece pra assistir.',
+    'Tá me seguindo? Boa sorte pra acompanhar.'
+  ],
+  friendly_banter: [
+    'Voa comigo, parceira! A gente forma um belo par.',
+    'Depois daquele resgate, você é da família.',
+    'Bora fazer uma manobra em dupla, hein?',
+    'Confio em você pra cobrir minha ala.',
+    'Amei essa sincronia, continua colada!'
+  ],
+  rivalry: [
+    'Sai da frente, você só me atrapalha.',
+    'Ainda tô cobrando aquela estrela que roubou.',
+    'A gente não combina, admite logo.',
+    'Encosta de novo e vai ver faísca.',
+    'Rivalidade? Chama assim se quiser perder.'
+  ],
 };

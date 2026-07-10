@@ -1,6 +1,7 @@
 import { Vector2D } from '../entities/vector2d';
 import { Ship } from '../entities/ship';
 import { ShipColor, SHIP_PERSONAS } from '../entities/ship-personas';
+import { IntentManager } from '../systems/intent-manager';
 
 /**
  * Manages game initialization including ship creation
@@ -44,6 +45,8 @@ export class GameInitializationManager {
       personality: 'explorer' as const,
       personalityTimer: 10000 + Math.random() * 10000,
       patrolTarget: undefined,
+      drives: IntentManager.initDrives(),
+      intentTimer: IntentManager.nextIntentDelay(),
       fireCooldown: 0,
       paralyzeTimer: 0,
       asteroidsDestroyed: 0,

@@ -1,8 +1,10 @@
 import { Show, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { AudioService } from '../game/audio/audio.service';
 import { ScreenWakeLockService } from '../game/services/screen-wake-lock.service';
+import { LogbookService } from '../game/services/logbook-store';
 import { StarChasers, type StarChasersApi } from './StarChasers';
 import { AboutDialog } from './AboutDialog';
+import { LogbookPanel } from './LogbookPanel';
 import { PerfOverlay } from './dev/PerfOverlay';
 
 function formatTime(date: Date): string {
@@ -24,6 +26,7 @@ export function App() {
   const [isMobile, setIsMobile] = createSignal(false);
   const [currentTime, setCurrentTime] = createSignal(new Date());
   const [aboutOpen, setAboutOpen] = createSignal(false);
+  const [logbookOpen, setLogbookOpen] = createSignal(false);
 
   let starChasersApi: StarChasersApi | undefined;
   const [perfApi, setPerfApi] = createSignal<StarChasersApi | undefined>();
@@ -66,9 +69,45 @@ export function App() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
+    // --- Logbook: watch-time accounting + aggregated persistence ---
+    const logbook = LogbookService.shared;
+    let lastWatchTick = Date.now();
+    const watchInterval = window.setInterval(() => {
+      const now = Date.now();
+      if (document.visibilityState === 'visible') {
+        logbook.addWatchTime(now - lastWatchTick);
+      }
+      lastWatchTick = now;
+    }, 1000);
+    const flushInterval = window.setInterval(() => logbook.flush(), 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') logbook.flush();
+    };
+    const onPageHide = () => logbook.flush();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
+
+    // 'H' toggles the diary, unless the user is typing (e.g. the signature field).
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'h') return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      event.preventDefault();
+      setLogbookOpen(open => !open);
+    };
+    document.addEventListener('keydown', onKeyDown);
+
     onCleanup(() => {
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       clearInterval(clockInterval);
+      clearInterval(watchInterval);
+      clearInterval(flushInterval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('keydown', onKeyDown);
+      logbook.flush();
       window.removeEventListener('resize', checkMobile);
       AudioService.shared.cleanup();
       ScreenWakeLockService.shared.cleanup();
@@ -109,6 +148,21 @@ export function App() {
           </button>
         </div>
       </Show>
+
+      {/* Diário de bordo toggle (desktop) */}
+      <Show when={!isMobile()}>
+        <button
+          type="button"
+          onClick={() => setLogbookOpen(open => !open)}
+          class="absolute left-4 bottom-4 z-40 pointer-events-auto rounded-full border border-white/10 bg-black/55 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.2em] text-gray-300 shadow-xl backdrop-blur-md hover:bg-white/10"
+          title="Diário de bordo"
+        >
+          Diário de bordo (H)
+        </button>
+      </Show>
+
+      {/* Diário de bordo panel */}
+      <LogbookPanel isOpen={logbookOpen} onClose={() => setLogbookOpen(false)} />
 
       {/* About Dialog */}
       <AboutDialog isOpen={aboutOpen} onClose={closeAbout} />
