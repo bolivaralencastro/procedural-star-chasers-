@@ -1,51 +1,51 @@
-# .github/workflows/deploy.yml
 name: Build and Deploy to GitHub Pages
 
 on:
-  # Executa sempre que você fizer um 'push' na branch 'main'
+  # Publica sempre que houver push na branch main.
   push:
-    branches: [ "main" ]
+    branches: ["main"]
+  workflow_dispatch:
 
-# Permissões necessárias para a Action poder publicar a página
+# Permissões necessárias para a Action publicar a página.
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Evita deploys concorrentes; mantém apenas o mais recente.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
-        # Baixa o seu código para o ambiente da Action
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        # Instala o Node.js, necessário para rodar o Angular
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
-      - name: Install Dependencies
-        # Instala as dependências do seu projeto (Angular, etc.)
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Build
-        # Compila seu projeto para gerar os arquivos estáticos (HTML, CSS, JS)
-        # O base-href é crucial para que os arquivos sejam encontrados no GitHub Pages.
-        # Usamos 'npx' para garantir que o comando 'ng' do projeto seja encontrado.
-        run: npx ng build --configuration production --base-href /procedural-star-chasers-/
+      - name: Build (Vite)
+        # base é relativo (base: './' no vite.config), então funciona sob o
+        # sub-caminho do GitHub Pages sem precisar de flags extras.
+        run: npm run build
 
       - name: Upload artifact
-        # Envia os arquivos compilados para o GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
-          # CORREÇÃO: Apontamos diretamente para a pasta 'dist',
-          # conforme indicado pelo log do build.
-          path: './dist'
+          path: "./dist"
 
       - name: Deploy to GitHub Pages
-        # Publica o site
         id: deployment
         uses: actions/deploy-pages@v4
